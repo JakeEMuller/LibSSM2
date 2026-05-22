@@ -1,0 +1,68 @@
+# ---------------------------------------------------------------------------
+# Build outputs
+# ---------------------------------------------------------------------------
+build/
+build-*/
+out/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+compile_commands.json
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+*.pdb
+*.ilk
+*.exp
+
+# ---------------------------------------------------------------------------
+# Generated source (regenerated from data/log_defs.xml at build time)
+# ---------------------------------------------------------------------------
+# These live under build/ already but listed explicitly as a safety net.
+**/gen/libssm2/SsmBaseTable.h
+
+# ---------------------------------------------------------------------------
+# Python (used by data/gen_params.py)
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---------------------------------------------------------------------------
+# IDE / editor (user-specific only -- shared configs ARE tracked)
+# ---------------------------------------------------------------------------
+# Tracked:    .vscode/settings.json, extensions.json, launch.json
+# Untracked:  per-user overrides
+.vscode/*.code-workspace
+.vscode/.ropeproject/
+.idea/
+*.swp
+*.swo
+*~
+
+# clangd / language-server caches
+.cache/
+.clangd/
+
+# ---------------------------------------------------------------------------
+# OS junk
+# ---------------------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# ---------------------------------------------------------------------------
+# Logs and crash dumps
+# ---------------------------------------------------------------------------
+*.log
+*.dmp

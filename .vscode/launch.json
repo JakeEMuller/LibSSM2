@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug libssm2_gen_smoke (Debug preset)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/debug/libssm2_gen_smoke.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build/debug",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/msys64/ucrt64/bin/gdb.exe",
+            "externalConsole": false,
+            "stopAtEntry": false,
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            "name": "Debug libssm2_gen_smoke (active preset)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [],
+            "cwd": "${command:cmake.launchTargetDirectory}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/msys64/ucrt64/bin/gdb.exe",
+            "externalConsole": false,
+            "stopAtEntry": false
+        }
+    ]
+}
