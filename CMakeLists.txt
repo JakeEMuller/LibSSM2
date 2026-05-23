@@ -24,18 +24,19 @@ add_subdirectory(data)
 # ----------------------------------------------------------------------------
 # Core C++ library.
 #
-# Currently INTERFACE (headers only) -- declarations live in
-# include/libssm2/{Common,Can,IsoTp,Ssm2}.h; implementations will land in
-# src/ as those .cpp files are written. When that happens this becomes a
-# STATIC (or OBJECT) library and the same alias keeps working.
+# Declarations in include/libssm2/{Common,Can,IsoTp,Ssm2}.h, implementations
+# in src/. Backend implementations (Kvaser, SocketCAN) live in separate
+# libraries and link against libssm2::core.
 # ----------------------------------------------------------------------------
-add_library(libssm2_core INTERFACE)
+add_library(libssm2_core STATIC
+    src/IsoTp.cpp
+)
 add_library(libssm2::core ALIAS libssm2_core)
 
-target_include_directories(libssm2_core INTERFACE
+target_include_directories(libssm2_core PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
 )
-target_compile_features(libssm2_core INTERFACE cxx_std_17)
+target_compile_features(libssm2_core PUBLIC cxx_std_17)
 
 # ----------------------------------------------------------------------------
 # Build-time validation: compiles the generated header in isolation so the
@@ -52,4 +53,20 @@ if (LIBSSM2_BUILD_GEN_SMOKE_TEST)
         libssm2::core
         libssm2::generated
     )
+endif()
+
+# ----------------------------------------------------------------------------
+# Unit tests.
+# ----------------------------------------------------------------------------
+option(LIBSSM2_BUILD_TESTS
+    "Build unit tests for libssm2"
+    ${PROJECT_IS_TOP_LEVEL})
+
+if (LIBSSM2_BUILD_TESTS)
+    enable_testing()
+
+    add_executable(libssm2_test_isotp tests/test_isotp.cpp)
+    target_link_libraries(libssm2_test_isotp PRIVATE libssm2::core)
+    target_include_directories(libssm2_test_isotp PRIVATE tests)
+    add_test(NAME isotp COMMAND libssm2_test_isotp)
 endif()

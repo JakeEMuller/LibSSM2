@@ -37,10 +37,13 @@ __pycache__/
 venv/
 
 # ---------------------------------------------------------------------------
-# IDE / editor (user-specific only -- shared configs ARE tracked)
+# IDE / editor
 # ---------------------------------------------------------------------------
-# Tracked:    .vscode/settings.json, extensions.json, launch.json
-# Untracked:  per-user overrides
+# Tracked:    .vscode/extensions.json, .vscode/launch.json,
+#             .vscode/settings.json.example
+# Untracked:  .vscode/settings.json (contains a personal absolute path to the
+#             clang-format binary -- each dev maintains their own copy)
+.vscode/settings.json
 .vscode/*.code-workspace
 .vscode/.ropeproject/
 .idea/
