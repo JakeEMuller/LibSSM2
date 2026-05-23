@@ -22,9 +22,20 @@ endif()
 add_subdirectory(data)
 
 # ----------------------------------------------------------------------------
-# C++ library targets go below. (Real library sources will be added here when
-# include/libssm2/Ssm2.h, IsoTp.h, Can.h and their .cpp files exist.)
+# Core C++ library.
+#
+# Currently INTERFACE (headers only) -- declarations live in
+# include/libssm2/{Common,Can,IsoTp,Ssm2}.h; implementations will land in
+# src/ as those .cpp files are written. When that happens this becomes a
+# STATIC (or OBJECT) library and the same alias keeps working.
 # ----------------------------------------------------------------------------
+add_library(libssm2_core INTERFACE)
+add_library(libssm2::core ALIAS libssm2_core)
+
+target_include_directories(libssm2_core INTERFACE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+)
+target_compile_features(libssm2_core INTERFACE cxx_std_17)
 
 # ----------------------------------------------------------------------------
 # Build-time validation: compiles the generated header in isolation so the
@@ -37,5 +48,8 @@ option(LIBSSM2_BUILD_GEN_SMOKE_TEST
 
 if (LIBSSM2_BUILD_GEN_SMOKE_TEST)
     add_executable(libssm2_gen_smoke tests/gen_smoke.cpp)
-    target_link_libraries(libssm2_gen_smoke PRIVATE libssm2::generated)
+    target_link_libraries(libssm2_gen_smoke PRIVATE
+        libssm2::core
+        libssm2::generated
+    )
 endif()
