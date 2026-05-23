@@ -426,6 +426,39 @@ namespace
         CHECK_STATUS(client.WriteAddress(0x100, 0x55), eStatus::NotSupported);
     }
 
+    // Connect() should Open() the bus then Init(). Verify against MockCanBus.
+    void test_connect_opens_and_inits()
+    {
+        MockCanBus bus;
+        (void)bus.Close();  // start closed so we can verify Connect opens it
+        CHECK(!bus.IsOpen());
+        auto client = MakeClient(bus);
+
+        // 105-byte init response (same shape as the real-car test).
+        std::vector<uint8_t> payload = {0xEA, 0xA2, 0x10, 0x02, 0x51, 0x12, 0x18, 0x80, 0x07};
+        while (payload.size() < 1 + c_ssmIdLen + c_romIdLen + c_capFlagsLen)
+        {
+            payload.push_back(0x00);
+        }
+        QueueIsoTpMultiFrame(bus, c_engineRespId, payload);
+
+        tSsm2InitResponse init{};
+        CHECK_OK(client.Connect(&init));
+        CHECK(bus.IsOpen());
+        CHECK(client.IsInitialized());
+        CHECK(init.romId[0] == 0x51);
+    }
+
+    // Connect() with no bus returns BackendUnavailable, doesn't crash.
+    void test_connect_no_bus()
+    {
+        Ssm2Client::tConfig cfg;
+        cfg.bus = nullptr;
+        Ssm2Client        client(cfg);
+        tSsm2InitResponse init{};
+        CHECK_STATUS(client.Connect(&init), eStatus::BackendUnavailable);
+    }
+
     // Continuous-mode methods are placeholders for now.
     void test_continuous_not_supported()
     {
@@ -458,6 +491,8 @@ int main()
     RUN(test_writes_blocked_by_default);
     RUN(test_writes_unlock_wrong_phrase);
     RUN(test_writes_unlock_relock);
+    RUN(test_connect_opens_and_inits);
+    RUN(test_connect_no_bus);
     RUN(test_issupported_pre_init);
     RUN(test_invalid_args);
     RUN(test_continuous_not_supported);

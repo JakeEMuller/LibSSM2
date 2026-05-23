@@ -97,6 +97,22 @@ namespace libssm2
         return eStatus::Ok;
     }
 
+    // -------- Connect (Open + Init) --------------------------------------------
+
+    eStatus Ssm2Client::Connect(tSsm2InitResponse *out, uint32_t timeoutMs)
+    {
+        if (m_cfg.bus == nullptr)
+        {
+            return eStatus::BackendUnavailable;
+        }
+        const eStatus s = m_cfg.bus->Open();
+        if (!IsOk(s))
+        {
+            return s;
+        }
+        return Init(out, timeoutMs);
+    }
+
     // -------- ReadAddresses (0xA8 single-shot) ---------------------------------
 
     eStatus Ssm2Client::ReadAddresses(const uint32_t *addrs, size_t addrCount, uint8_t *out, uint32_t timeoutMs)

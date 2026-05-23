@@ -124,6 +124,15 @@ namespace libssm2
         // eSsm2Cmd::Init - ECU init. Populates *out with ssmId, romId, capFlags.
         [[nodiscard]] eStatus Init(tSsm2InitResponse *out, uint32_t timeoutMs = 0);
 
+        // Convenience: opens the bus, then performs Init() in one call.
+        // Equivalent to:
+        //   bus.Open();        // skipped if already open
+        //   client.Init(out, timeoutMs);
+        // Use for the common case where the bus and client share lifetime.
+        // For complex lifetimes (e.g. multiple clients on one bus) keep the
+        // Open() and Init() calls separate.
+        [[nodiscard]] eStatus Connect(tSsm2InitResponse *out, uint32_t timeoutMs = 0);
+
         // eSsm2Cmd::ReadAddresses - single-shot read of `addrCount` addresses.
         // Writes `addrCount` bytes (one per address, in order) into `out`.
         [[nodiscard]] eStatus ReadAddresses(const uint32_t *addrs, size_t addrCount, uint8_t *out, uint32_t timeoutMs = 0);
