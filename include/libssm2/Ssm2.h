@@ -45,8 +45,12 @@ namespace libssm2
     // Default round-trip deadline used when a per-call timeoutMs is 0.
     constexpr uint32_t c_defaultTimeoutMs = 500;
 
+    // Per-command upper bounds. Used to size internal scratch buffers.
+    constexpr size_t c_maxAddrsPerRead   = 84;   // ReadAddresses: 2 + 3*N <= ~256
+    constexpr size_t c_maxReadBlockSize  = 256;  // ReadBlock count-1 fits in one byte
+    constexpr size_t c_maxWriteBlockSize = 256;  // matches ReadBlock cap symmetrically
+
     // SSM2 command bytes carried as the first byte of the request payload.
-    // A positive response from the ECU starts with (cmd | c_responseMask).
     enum class eSsm2Cmd : uint8_t
     {
         ReadBlock     = 0xA0,
@@ -56,15 +60,25 @@ namespace libssm2
         WriteAddress  = 0xB8,
     };
 
+    // Positive-response codes the ECU sends back, one per command.
+    // Protocol convention: rsp == cmd | 0x40 (see static_asserts below).
+    enum class eSsm2Rsp : uint8_t
+    {
+        ReadBlock     = 0xE0,
+        ReadAddresses = 0xE8,
+        Init          = 0xEA,
+        WriteBlock    = 0xF0,
+        WriteAddress  = 0xF8,
+    };
+
+    // Documented for anyone interpreting raw SSM2 traffic. Not used internally.
     constexpr uint8_t c_responseMask = 0x40;
 
-    // Helper: compute the positive-response code the ECU sends back for a given
-    // request command. Used to verify a response against the request that
-    // triggered it.
-    [[nodiscard]] constexpr uint8_t Ssm2ResponseCode(eSsm2Cmd cmd) noexcept
-    {
-        return static_cast<uint8_t>(cmd) | c_responseMask;
-    }
+    static_assert((static_cast<uint8_t>(eSsm2Cmd::ReadBlock) | c_responseMask) == static_cast<uint8_t>(eSsm2Rsp::ReadBlock));
+    static_assert((static_cast<uint8_t>(eSsm2Cmd::ReadAddresses) | c_responseMask) == static_cast<uint8_t>(eSsm2Rsp::ReadAddresses));
+    static_assert((static_cast<uint8_t>(eSsm2Cmd::Init) | c_responseMask) == static_cast<uint8_t>(eSsm2Rsp::Init));
+    static_assert((static_cast<uint8_t>(eSsm2Cmd::WriteBlock) | c_responseMask) == static_cast<uint8_t>(eSsm2Rsp::WriteBlock));
+    static_assert((static_cast<uint8_t>(eSsm2Cmd::WriteAddress) | c_responseMask) == static_cast<uint8_t>(eSsm2Rsp::WriteAddress));
 
     // ---------------------------------------------------------------------------
     // Types.
@@ -144,6 +158,23 @@ namespace libssm2
 
         bool InContinuousMode() const noexcept { return m_continuous; }
 
+        // -------- write protection ---------------------------------------------
+        //
+        // SSM2 writes (0xB0 / 0xB8) modify ECU RAM in real time. They cannot
+        // brick the ECU permanently (RAM, not flash), but they CAN damage the
+        // engine while running by altering ignition timing, injector pulse
+        // width, idle target, etc.
+        //
+        // WriteAddress() and WriteBlock() return eStatus::NotSupported until
+        // UnlockWrites() succeeds. The acknowledgment string is intentionally
+        // not exposed as a constant -- you must type it literally in your
+        // code so reviewers can see the intent. Wrong / null string is a
+        // no-op. LockWrites() re-locks. Returns true on successful unlock.
+
+        bool UnlockWrites(const char *acknowledgment) noexcept;
+        void LockWrites() noexcept;
+        bool WritesUnlocked() const noexcept { return m_writesUnlocked; }
+
         // -------- post-init accessors ------------------------------------------
 
         bool IsInitialized() const noexcept { return m_initialized; }
@@ -161,6 +192,9 @@ namespace libssm2
 
     private:
 
+        // Returns `timeoutMs` if non-zero, else m_cfg.defaultTimeoutMs.
+        uint32_t EffectiveTimeoutMs(uint32_t timeoutMs) const noexcept;
+
         tConfig           m_cfg;
         IsoTpTransport    m_transport;
         tSsm2InitResponse m_init{};
@@ -168,6 +202,7 @@ namespace libssm2
 
         bool   m_continuous             = false;
         size_t m_continuousRecordSize   = 0;
+        bool   m_writesUnlocked         = false;
 
         // Fixed ring buffer for continuous-mode records.
         static constexpr size_t c_ringCapacity         = 1024;

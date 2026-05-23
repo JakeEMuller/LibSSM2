@@ -76,7 +76,7 @@ int main()
     static_assert(static_cast<uint8_t>(eSsm2Cmd::ReadBlock) == 0xA0);
     static_assert(static_cast<uint8_t>(eSsm2Cmd::WriteAddress) == 0xB8);
     static_assert(static_cast<uint8_t>(eSsm2Cmd::WriteBlock) == 0xB0);
-    static_assert(Ssm2ResponseCode(eSsm2Cmd::Init) == 0xEA);  // observed init response code
+    static_assert(static_cast<uint8_t>(eSsm2Rsp::Init) == 0xEA);  // observed init response code
 
     std::printf("libssm2 generated-table smoke test\n");
     std::printf("  entries:   %zu\n", c_ssmBaseTable.size());

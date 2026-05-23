@@ -30,6 +30,7 @@ add_subdirectory(data)
 # ----------------------------------------------------------------------------
 add_library(libssm2_core STATIC
     src/IsoTp.cpp
+    src/Ssm2Client.cpp
 )
 add_library(libssm2::core ALIAS libssm2_core)
 
@@ -69,4 +70,9 @@ if (LIBSSM2_BUILD_TESTS)
     target_link_libraries(libssm2_test_isotp PRIVATE libssm2::core)
     target_include_directories(libssm2_test_isotp PRIVATE tests)
     add_test(NAME isotp COMMAND libssm2_test_isotp)
+
+    add_executable(libssm2_test_ssm2 tests/test_ssm2.cpp)
+    target_link_libraries(libssm2_test_ssm2 PRIVATE libssm2::core)
+    target_include_directories(libssm2_test_ssm2 PRIVATE tests)
+    add_test(NAME ssm2 COMMAND libssm2_test_ssm2)
 endif()
