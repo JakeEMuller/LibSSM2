@@ -36,14 +36,9 @@ namespace subiediag
     constexpr size_t c_romIdLen    = 5;
     constexpr size_t c_capFlagsLen = 96;
 
-    // Standard SSM2-over-CAN (ISO 15765-4) ECU CAN IDs.
-    constexpr uint32_t c_engineReqId        = 0x7E0;
-    constexpr uint32_t c_engineRespId       = 0x7E8;
-    constexpr uint32_t c_transmissionReqId  = 0x7E1;
-    constexpr uint32_t c_transmissionRespId = 0x7E9;
-
-    // Default round-trip deadline used when a per-call timeoutMs is 0.
-    constexpr uint32_t c_defaultTimeoutMs = 500;
+    // CAN IDs (c_engineReqId etc.) and c_defaultTimeoutMs live in Common.h --
+    // shared between SSM2 and OBD-II since both use the same ISO 15765-4
+    // ECU CAN-ID conventions.
 
     // Per-command upper bounds. Used to size internal scratch buffers.
     constexpr size_t c_maxAddrsPerRead   = 84;   // ReadAddresses: 2 + 3*N <= ~256

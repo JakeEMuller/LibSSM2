@@ -81,6 +81,26 @@
             ]
         },
         {
+            "name": "Debug subiediag_test_obd2 (Debug preset)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/debug/subiediag_test_obd2.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build/debug",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/msys64/ucrt64/bin/gdb.exe",
+            "externalConsole": false,
+            "stopAtEntry": false,
+            "preLaunchTask": "CMake: build",
+            "setupCommands": [
+                {
+                    "description": "Display numeric values in hex",
+                    "text": "-gdb-set output-radix 16",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "Debug subiediag_kvaser_hello (channel 0)",
             "type": "cppdbg",
             "request": "launch",

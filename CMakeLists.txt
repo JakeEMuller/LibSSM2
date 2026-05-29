@@ -43,12 +43,16 @@ add_subdirectory(data)
 add_library(subiediag_core STATIC
     src/IsoTp.cpp
     src/Ssm2Client.cpp
+    src/Obd2Client.cpp
 )
 add_library(subiediag::core ALIAS subiediag_core)
 
 target_include_directories(subiediag_core PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
 )
+# Obd2Client.cpp includes the generated subiediag/Obd2DtcDb.h. Linking the
+# INTERFACE target also wires the codegen build-order dependency.
+target_link_libraries(subiediag_core PUBLIC subiediag::generated)
 target_compile_features(subiediag_core PUBLIC cxx_std_17)
 
 # ----------------------------------------------------------------------------
@@ -172,4 +176,9 @@ if (SUBIEDIAG_BUILD_TESTS)
     target_link_libraries(subiediag_test_ssm2 PRIVATE subiediag::core)
     target_include_directories(subiediag_test_ssm2 PRIVATE tests)
     add_test(NAME ssm2 COMMAND subiediag_test_ssm2)
+
+    add_executable(subiediag_test_obd2 tests/test_obd2.cpp)
+    target_link_libraries(subiediag_test_obd2 PRIVATE subiediag::core)
+    target_include_directories(subiediag_test_obd2 PRIVATE tests)
+    add_test(NAME obd2 COMMAND subiediag_test_obd2)
 endif()

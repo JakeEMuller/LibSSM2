@@ -1,0 +1,187 @@
+category,code,description
+P,0010,A Camshaft Position Actuator Circuit (Bank 1)
+P,0011,A Camshaft Position - Timing Over-Advanced (Bank 1)
+P,0012,A Camshaft Position - Timing Over-Retarded (Bank 1)
+P,0013,B Camshaft Position Actuator Circuit (Bank 1)
+P,0014,B Camshaft Position - Timing Over-Advanced (Bank 1)
+P,0015,B Camshaft Position - Timing Over-Retarded (Bank 1)
+P,0016,Crankshaft / Camshaft Position Correlation (Bank 1 Sensor A)
+P,0017,Crankshaft / Camshaft Position Correlation (Bank 1 Sensor B)
+P,0030,HO2S Heater Control Circuit (Bank 1 Sensor 1)
+P,0031,HO2S Heater Control Circuit Low (Bank 1 Sensor 1)
+P,0032,HO2S Heater Control Circuit High (Bank 1 Sensor 1)
+P,0036,HO2S Heater Control Circuit (Bank 1 Sensor 2)
+P,0037,HO2S Heater Control Circuit Low (Bank 1 Sensor 2)
+P,0038,HO2S Heater Control Circuit High (Bank 1 Sensor 2)
+P,0050,HO2S Heater Control Circuit (Bank 2 Sensor 1)
+P,0100,Mass or Volume Air Flow Circuit Malfunction
+P,0101,Mass or Volume Air Flow Circuit Range/Performance Problem
+P,0102,Mass or Volume Air Flow Circuit Low Input
+P,0103,Mass or Volume Air Flow Circuit High Input
+P,0106,Manifold Absolute Pressure / Barometric Pressure Circuit Range/Performance
+P,0107,Manifold Absolute Pressure / Barometric Pressure Circuit Low Input
+P,0108,Manifold Absolute Pressure / Barometric Pressure Circuit High Input
+P,0111,Intake Air Temperature Circuit Range/Performance Problem
+P,0112,Intake Air Temperature Circuit Low Input
+P,0113,Intake Air Temperature Circuit High Input
+P,0116,Engine Coolant Temperature Circuit Range/Performance Problem
+P,0117,Engine Coolant Temperature Circuit Low Input
+P,0118,Engine Coolant Temperature Circuit High Input
+P,0121,Throttle Position Sensor / Switch A Circuit Range/Performance Problem
+P,0122,Throttle Position Sensor / Switch A Circuit Low Input
+P,0123,Throttle Position Sensor / Switch A Circuit High Input
+P,0125,Insufficient Coolant Temperature for Closed Loop Fuel Control
+P,0128,Coolant Thermostat (Coolant Temperature Below Thermostat Regulating Temperature)
+P,0130,O2 Sensor Circuit Malfunction (Bank 1 Sensor 1)
+P,0131,O2 Sensor Circuit Low Voltage (Bank 1 Sensor 1)
+P,0132,O2 Sensor Circuit High Voltage (Bank 1 Sensor 1)
+P,0133,O2 Sensor Circuit Slow Response (Bank 1 Sensor 1)
+P,0134,O2 Sensor Circuit No Activity Detected (Bank 1 Sensor 1)
+P,0135,O2 Sensor Heater Circuit Malfunction (Bank 1 Sensor 1)
+P,0136,O2 Sensor Circuit Malfunction (Bank 1 Sensor 2)
+P,0137,O2 Sensor Circuit Low Voltage (Bank 1 Sensor 2)
+P,0138,O2 Sensor Circuit High Voltage (Bank 1 Sensor 2)
+P,0139,O2 Sensor Circuit Slow Response (Bank 1 Sensor 2)
+P,0140,O2 Sensor Circuit No Activity Detected (Bank 1 Sensor 2)
+P,0141,O2 Sensor Heater Circuit Malfunction (Bank 1 Sensor 2)
+P,0150,O2 Sensor Circuit Malfunction (Bank 2 Sensor 1)
+P,0151,O2 Sensor Circuit Low Voltage (Bank 2 Sensor 1)
+P,0152,O2 Sensor Circuit High Voltage (Bank 2 Sensor 1)
+P,0153,O2 Sensor Circuit Slow Response (Bank 2 Sensor 1)
+P,0154,O2 Sensor Circuit No Activity Detected (Bank 2 Sensor 1)
+P,0155,O2 Sensor Heater Circuit Malfunction (Bank 2 Sensor 1)
+P,0170,Fuel Trim Malfunction (Bank 1)
+P,0171,System Too Lean (Bank 1)
+P,0172,System Too Rich (Bank 1)
+P,0173,Fuel Trim Malfunction (Bank 2)
+P,0174,System Too Lean (Bank 2)
+P,0175,System Too Rich (Bank 2)
+P,0181,Fuel Temperature Sensor A Circuit Range/Performance
+P,0182,Fuel Temperature Sensor A Circuit Low Input
+P,0183,Fuel Temperature Sensor A Circuit High Input
+P,0190,Fuel Rail Pressure Sensor Circuit Malfunction
+P,0201,Injector Circuit Malfunction - Cylinder 1
+P,0202,Injector Circuit Malfunction - Cylinder 2
+P,0203,Injector Circuit Malfunction - Cylinder 3
+P,0204,Injector Circuit Malfunction - Cylinder 4
+P,0205,Injector Circuit Malfunction - Cylinder 5
+P,0206,Injector Circuit Malfunction - Cylinder 6
+P,0218,Transmission Over Temperature Condition
+P,0221,Throttle Position Sensor / Switch B Circuit Range/Performance Problem
+P,0222,Throttle Position Sensor / Switch B Circuit Low Input
+P,0223,Throttle Position Sensor / Switch B Circuit High Input
+P,0230,Fuel Pump Primary Circuit Malfunction
+P,0234,Engine Overboost Condition
+P,0261,Cylinder 1 Injector Circuit Low
+P,0262,Cylinder 1 Injector Circuit High
+P,0300,Random / Multiple Cylinder Misfire Detected
+P,0301,Cylinder 1 Misfire Detected
+P,0302,Cylinder 2 Misfire Detected
+P,0303,Cylinder 3 Misfire Detected
+P,0304,Cylinder 4 Misfire Detected
+P,0305,Cylinder 5 Misfire Detected
+P,0306,Cylinder 6 Misfire Detected
+P,0325,Knock Sensor 1 Circuit Malfunction (Bank 1 or Single Sensor)
+P,0326,Knock Sensor 1 Circuit Range/Performance (Bank 1 or Single Sensor)
+P,0327,Knock Sensor 1 Circuit Low Input (Bank 1 or Single Sensor)
+P,0328,Knock Sensor 1 Circuit High Input (Bank 1 or Single Sensor)
+P,0335,Crankshaft Position Sensor A Circuit Malfunction
+P,0336,Crankshaft Position Sensor A Circuit Range/Performance
+P,0340,Camshaft Position Sensor A Circuit (Bank 1 or Single Sensor)
+P,0341,Camshaft Position Sensor A Circuit Range/Performance (Bank 1 or Single Sensor)
+P,0345,Camshaft Position Sensor A Circuit (Bank 2)
+P,0351,Ignition Coil A Primary / Secondary Circuit Malfunction
+P,0352,Ignition Coil B Primary / Secondary Circuit Malfunction
+P,0353,Ignition Coil C Primary / Secondary Circuit Malfunction
+P,0354,Ignition Coil D Primary / Secondary Circuit Malfunction
+P,0400,Exhaust Gas Recirculation Flow Malfunction
+P,0401,Exhaust Gas Recirculation Flow Insufficient Detected
+P,0402,Exhaust Gas Recirculation Flow Excessive Detected
+P,0403,Exhaust Gas Recirculation Circuit Malfunction
+P,0410,Secondary Air Injection System Malfunction
+P,0411,Secondary Air Injection System Incorrect Flow Detected
+P,0412,Secondary Air Injection System Switching Valve A Circuit Malfunction
+P,0420,Catalyst System Efficiency Below Threshold (Bank 1)
+P,0421,Warm Up Catalyst Efficiency Below Threshold (Bank 1)
+P,0430,Catalyst System Efficiency Below Threshold (Bank 2)
+P,0431,Warm Up Catalyst Efficiency Below Threshold (Bank 2)
+P,0440,Evaporative Emission Control System Malfunction
+P,0441,Evaporative Emission Control System Incorrect Purge Flow
+P,0442,Evaporative Emission Control System Leak Detected (Small Leak)
+P,0443,Evaporative Emission Control System Purge Control Valve Circuit Malfunction
+P,0446,Evaporative Emission Control System Vent Control Circuit Malfunction
+P,0447,Evaporative Emission Control System Vent Control Circuit Open
+P,0448,Evaporative Emission Control System Vent Control Circuit Shorted
+P,0451,Evaporative Emission Control System Pressure Sensor Range/Performance
+P,0452,Evaporative Emission Control System Pressure Sensor Low Input
+P,0453,Evaporative Emission Control System Pressure Sensor High Input
+P,0455,Evaporative Emission Control System Leak Detected (Large Leak)
+P,0456,Evaporative Emission Control System Leak Detected (Very Small Leak)
+P,0461,Fuel Level Sensor Circuit Range/Performance
+P,0462,Fuel Level Sensor Circuit Low Input
+P,0463,Fuel Level Sensor Circuit High Input
+P,0500,Vehicle Speed Sensor Malfunction
+P,0501,Vehicle Speed Sensor Range/Performance
+P,0505,Idle Control System Malfunction
+P,0506,Idle Control System RPM Lower Than Expected
+P,0507,Idle Control System RPM Higher Than Expected
+P,0521,Engine Oil Pressure Sensor / Switch Range/Performance
+P,0522,Engine Oil Pressure Sensor / Switch Low Voltage
+P,0523,Engine Oil Pressure Sensor / Switch High Voltage
+P,0532,A/C Refrigerant Pressure Sensor Circuit Low Input
+P,0533,A/C Refrigerant Pressure Sensor Circuit High Input
+P,0560,System Voltage Malfunction
+P,0562,System Voltage Low
+P,0563,System Voltage High
+P,0571,Cruise Control / Brake Switch A Circuit Malfunction
+P,0600,Serial Communication Link Malfunction
+P,0601,Internal Control Module Memory Check Sum Error
+P,0602,Control Module Programming Error
+P,0603,Internal Control Module Keep Alive Memory (KAM) Error
+P,0604,Internal Control Module Random Access Memory (RAM) Error
+P,0605,Internal Control Module Read Only Memory (ROM) Error
+P,0606,PCM Processor Fault
+P,0610,Control Module Vehicle Options Error
+P,0700,Transmission Control System Malfunction
+P,0705,Transmission Range Sensor Circuit Malfunction (PRNDL Input)
+P,0710,Transmission Fluid Temperature Sensor Circuit Malfunction
+P,0715,Input / Turbine Speed Sensor Circuit Malfunction
+P,0720,Output Speed Sensor Circuit Malfunction
+P,0725,Engine Speed Input Circuit Malfunction
+P,0730,Incorrect Gear Ratio
+P,0740,Torque Converter Clutch Circuit Malfunction
+P,0741,Torque Converter Clutch Circuit Performance or Stuck Off
+P,0742,Torque Converter Clutch Circuit Stuck On
+P,0743,Torque Converter Clutch Circuit Electrical
+P,0750,Shift Solenoid A Malfunction
+P,0755,Shift Solenoid B Malfunction
+P,2096,Post Catalyst Fuel Trim System Too Lean (Bank 1)
+P,2097,Post Catalyst Fuel Trim System Too Rich (Bank 1)
+P,2098,Post Catalyst Fuel Trim System Too Lean (Bank 2)
+P,2099,Post Catalyst Fuel Trim System Too Rich (Bank 2)
+P,2101,Throttle Actuator Control Motor Circuit Range/Performance
+P,2102,Throttle Actuator Control Motor Circuit Low
+P,2103,Throttle Actuator Control Motor Circuit High
+P,2106,Throttle Actuator Control System - Forced Limited Power
+P,2110,Throttle Actuator Control System - Forced Limited RPM
+P,2122,Throttle Pedal Position Sensor / Switch D Circuit Low Input
+P,2123,Throttle Pedal Position Sensor / Switch D Circuit High Input
+P,2127,Throttle Pedal Position Sensor / Switch E Circuit Low Input
+P,2128,Throttle Pedal Position Sensor / Switch E Circuit High Input
+P,2138,Throttle Pedal Position Sensor / Switch D / E Voltage Correlation
+U,0073,Control Module Communication Bus Off
+U,0100,Lost Communication with ECM/PCM
+U,0101,Lost Communication with TCM
+U,0121,Lost Communication with ABS Control Module
+U,0140,Lost Communication with Body Control Module
+U,0155,Lost Communication with Instrument Panel Cluster Control Module
+U,0401,Invalid Data Received From ECM/PCM
+U,0402,Invalid Data Received From TCM
+C,0035,Front LH Wheel Speed Sensor Circuit
+C,0040,Front RH Wheel Speed Sensor Circuit
+C,0045,Rear LH Wheel Speed Sensor Circuit
+C,0050,Rear RH Wheel Speed Sensor Circuit
+C,0110,ABS Pump Motor Circuit Malfunction
+C,0121,Valve Relay Circuit Malfunction
+B,1318,Battery Voltage Low
+B,1325,Power Circuit Voltage High

@@ -74,4 +74,18 @@ namespace subiediag
         return "unknown";
     }
 
+    // ---------------------------------------------------------------------------
+    // Generic CAN-diagnostic constants. Used by both SSM2 and OBD-II clients
+    // since they share the same ISO 15765-4 ECU CAN-ID conventions.
+    // ---------------------------------------------------------------------------
+
+    // Standard 11-bit CAN IDs for physical (point-to-point) diagnostics.
+    constexpr uint32_t c_engineReqId        = 0x7E0;
+    constexpr uint32_t c_engineRespId       = 0x7E8;
+    constexpr uint32_t c_transmissionReqId  = 0x7E1;
+    constexpr uint32_t c_transmissionRespId = 0x7E9;
+
+    // Default round-trip deadline used when a per-call timeoutMs is 0.
+    constexpr uint32_t c_defaultTimeoutMs = 500;
+
 }  // namespace subiediag
