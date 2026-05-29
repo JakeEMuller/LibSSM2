@@ -315,7 +315,7 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
     w("#include <stdint.h>")
     w("#include <string_view>")
     w("")
-    w("namespace libssm2 {")
+    w("namespace subiediag {")
     w("")
     w("enum class eStorageType : uint8_t {")
     w("    Uint8, Uint16, Uint32,")
@@ -362,7 +362,7 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
 
     w("}};")
     w("")
-    w("}  // namespace libssm2")
+    w("}  // namespace subiediag")
     w("")
 
     out_path.write_text("\n".join(lines), encoding="utf-8")

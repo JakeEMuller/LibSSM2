@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug libssm2_gen_smoke (Debug preset)",
+            "name": "Debug subiediag_gen_smoke (Debug preset)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/debug/libssm2_gen_smoke.exe",
+            "program": "${workspaceFolder}/build/debug/subiediag_gen_smoke.exe",
             "args": [],
             "cwd": "${workspaceFolder}/build/debug",
             "MIMode": "gdb",
@@ -22,7 +22,7 @@
             ]
         },
         {
-            "name": "Debug libssm2_gen_smoke (active preset)",
+            "name": "Debug subiediag_gen_smoke (active preset)",
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
@@ -41,10 +41,10 @@
             ]
         },
         {
-            "name": "Debug libssm2_test_isotp (Debug preset)",
+            "name": "Debug subiediag_test_isotp (Debug preset)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/debug/libssm2_test_isotp.exe",
+            "program": "${workspaceFolder}/build/debug/subiediag_test_isotp.exe",
             "args": [],
             "cwd": "${workspaceFolder}/build/debug",
             "MIMode": "gdb",
@@ -61,10 +61,10 @@
             ]
         },
         {
-            "name": "Debug libssm2_test_ssm2 (Debug preset)",
+            "name": "Debug subiediag_test_ssm2 (Debug preset)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/debug/libssm2_test_ssm2.exe",
+            "program": "${workspaceFolder}/build/debug/subiediag_test_ssm2.exe",
             "args": [],
             "cwd": "${workspaceFolder}/build/debug",
             "MIMode": "gdb",
@@ -81,10 +81,10 @@
             ]
         },
         {
-            "name": "Debug libssm2_kvaser_hello (channel 0)",
+            "name": "Debug subiediag_kvaser_hello (channel 0)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/debug/libssm2_kvaser_hello.exe",
+            "program": "${workspaceFolder}/build/debug/subiediag_kvaser_hello.exe",
             "args": ["0"],
             "cwd": "${workspaceFolder}/build/debug",
             "MIMode": "gdb",
@@ -101,10 +101,10 @@
             ]
         },
         {
-            "name": "Debug libssm2_kvaser_hello (channel 1)",
+            "name": "Debug subiediag_kvaser_hello (channel 1)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/debug/libssm2_kvaser_hello.exe",
+            "program": "${workspaceFolder}/build/debug/subiediag_kvaser_hello.exe",
             "args": ["1"],
             "cwd": "${workspaceFolder}/build/debug",
             "MIMode": "gdb",

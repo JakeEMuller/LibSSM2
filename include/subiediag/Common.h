@@ -1,4 +1,4 @@
-// libssm2/Common.h
+// subiediag/Common.h
 //
 // Shared types used across the library.
 //
@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <string_view>
 
-namespace libssm2
+namespace subiediag
 {
 
     // Library-wide return code. Granular by design so future logging can surface
@@ -74,4 +74,4 @@ namespace libssm2
         return "unknown";
     }
 
-}  // namespace libssm2
+}  // namespace subiediag

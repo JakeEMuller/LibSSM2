@@ -1,4 +1,4 @@
-// libssm2/IsoTp.h
+// subiediag/IsoTp.h
 //
 // ISO 15765-2 transport over CAN.
 //
@@ -15,13 +15,13 @@
 
 #pragma once
 
-#include "libssm2/Can.h"
-#include "libssm2/Common.h"
+#include "subiediag/Can.h"
+#include "subiediag/Common.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
-namespace libssm2
+namespace subiediag
 {
 
     class IsoTpTransport
@@ -61,4 +61,4 @@ namespace libssm2
         uint8_t  m_padByte;
     };
 
-}  // namespace libssm2
+}  // namespace subiediag

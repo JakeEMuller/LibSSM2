@@ -1,8 +1,8 @@
-// libssm2/Can.h
+// subiediag/Can.h
 //
 // Raw CAN abstraction. One tCanFrame POD and one pure-virtual ICanBus.
 // Concrete backends (Kvaser, SocketCAN, mocks) live in their own headers
-// under libssm2/backends/ and inherit from ICanBus.
+// under subiediag/backends/ and inherit from ICanBus.
 //
 // Threading: a single ICanBus instance is owned by one thread at a time.
 // No internal synchronization. Sharing across threads is the caller's job.
@@ -13,12 +13,12 @@
 
 #pragma once
 
-#include "libssm2/Common.h"
+#include "subiediag/Common.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
-namespace libssm2
+namespace subiediag
 {
 
     // Maximum payload size of a classic CAN 2.0 frame. CAN-FD (up to 64) is not
@@ -79,4 +79,4 @@ namespace libssm2
         ICanBus &operator=(ICanBus &&)      = delete;
     };
 
-}  // namespace libssm2
+}  // namespace subiediag

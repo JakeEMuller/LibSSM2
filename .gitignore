@@ -25,7 +25,7 @@ compile_commands.json
 # Generated source (regenerated from data/log_defs.xml at build time)
 # ---------------------------------------------------------------------------
 # These live under build/ already but listed explicitly as a safety net.
-**/gen/libssm2/SsmBaseTable.h
+**/gen/subiediag/SsmBaseTable.h
 
 # ---------------------------------------------------------------------------
 # Python (used by data/gen_params.py)

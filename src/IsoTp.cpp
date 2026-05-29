@@ -6,12 +6,12 @@
 // Padding: each transmitted CAN frame is full-length (8 bytes). Bytes
 // beyond the ISO-TP payload are filled with m_padByte.
 
-#include "libssm2/IsoTp.h"
+#include "subiediag/IsoTp.h"
 
 #include <chrono>
 #include <string.h>
 
-namespace libssm2
+namespace subiediag
 {
 
     namespace
@@ -442,4 +442,4 @@ namespace libssm2
         return ReceiveResponse(out, outCapacity, outLen, r2);
     }
 
-}  // namespace libssm2
+}  // namespace subiediag

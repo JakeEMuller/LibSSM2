@@ -5,9 +5,9 @@
 // The init test uses the actual response captured from the user's 2008
 // Impreza so we know the bit layout matches reality.
 
-#include "libssm2/Can.h"
-#include "libssm2/Common.h"
-#include "libssm2/Ssm2.h"
+#include "subiediag/Can.h"
+#include "subiediag/Common.h"
+#include "subiediag/Ssm2.h"
 #include "MockCanBus.h"
 
 #include <cstdio>
@@ -18,20 +18,20 @@
 namespace
 {
 
-    using libssm2::c_canMaxDataLen;
-    using libssm2::c_capFlagsLen;
-    using libssm2::c_engineReqId;
-    using libssm2::c_engineRespId;
-    using libssm2::c_romIdLen;
-    using libssm2::c_ssmIdLen;
-    using libssm2::DescribeStatus;
-    using libssm2::eSsm2Cmd;
-    using libssm2::eSsm2Rsp;
-    using libssm2::eStatus;
-    using libssm2::IsOk;
-    using libssm2::Ssm2Client;
-    using libssm2::tSsm2InitResponse;
-    using libssm2_test::MockCanBus;
+    using subiediag::c_canMaxDataLen;
+    using subiediag::c_capFlagsLen;
+    using subiediag::c_engineReqId;
+    using subiediag::c_engineRespId;
+    using subiediag::c_romIdLen;
+    using subiediag::c_ssmIdLen;
+    using subiediag::DescribeStatus;
+    using subiediag::eSsm2Cmd;
+    using subiediag::eSsm2Rsp;
+    using subiediag::eStatus;
+    using subiediag::IsOk;
+    using subiediag::Ssm2Client;
+    using subiediag::tSsm2InitResponse;
+    using subiediag_test::MockCanBus;
 
     // --- tiny test harness ----------------------------------------------------
 
@@ -102,7 +102,7 @@ namespace
     // Queue an ISO-TP single-frame response carrying `payload`.
     void QueueIsoTpSingleFrame(MockCanBus &bus, uint32_t id, const std::vector<uint8_t> &payload)
     {
-        libssm2::tCanFrame f{};
+        subiediag::tCanFrame f{};
         f.id      = id;
         f.dlc     = c_canMaxDataLen;
         f.data[0] = static_cast<uint8_t>(payload.size());
@@ -121,7 +121,7 @@ namespace
     {
         const uint16_t total = static_cast<uint16_t>(payload.size());
 
-        libssm2::tCanFrame ff{};
+        subiediag::tCanFrame ff{};
         ff.id      = id;
         ff.dlc     = c_canMaxDataLen;
         ff.data[0] = static_cast<uint8_t>(0x10 | ((total >> 8) & 0x0F));
@@ -136,7 +136,7 @@ namespace
         uint8_t seq  = 1;
         while (sent < payload.size())
         {
-            libssm2::tCanFrame cf{};
+            subiediag::tCanFrame cf{};
             cf.id             = id;
             cf.dlc            = c_canMaxDataLen;
             cf.data[0]        = 0x20 | (seq & 0x0F);

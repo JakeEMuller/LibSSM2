@@ -4,14 +4,14 @@
 // only forward-declares the integer handle so consumers don't pull in
 // windows.h transitively.
 
-#include "libssm2/backends/Kvaser.h"
+#include "subiediag/backends/Kvaser.h"
 
 #include <canlib.h>
 
 #include <mutex>
 #include <string.h>
 
-namespace libssm2::backends
+namespace subiediag::backends
 {
 
     namespace
@@ -27,46 +27,46 @@ namespace libssm2::backends
             std::call_once(g_canlibInitFlag, []() { canInitializeLibrary(); });
         }
 
-        libssm2::eStatus FromCanlibStatus(canStatus s) noexcept
+        subiediag::eStatus FromCanlibStatus(canStatus s) noexcept
         {
             switch (s)
             {
             case canOK:
-                return libssm2::eStatus::Ok;
+                return subiediag::eStatus::Ok;
             case canERR_TIMEOUT:
-                return libssm2::eStatus::Timeout;
+                return subiediag::eStatus::Timeout;
             case canERR_NOMSG:
-                return libssm2::eStatus::Timeout;
+                return subiediag::eStatus::Timeout;
             case canERR_PARAM:
-                return libssm2::eStatus::InvalidFrame;
+                return subiediag::eStatus::InvalidFrame;
             case canERR_NOMEM:
-                return libssm2::eStatus::BackendUnavailable;
+                return subiediag::eStatus::BackendUnavailable;
             case canERR_HARDWARE:
-                return libssm2::eStatus::BackendUnavailable;
+                return subiediag::eStatus::BackendUnavailable;
             case canERR_NOTFOUND:
-                return libssm2::eStatus::BackendUnavailable;
+                return subiediag::eStatus::BackendUnavailable;
             case canERR_NOCHANNELS:
-                return libssm2::eStatus::BackendUnavailable;
+                return subiediag::eStatus::BackendUnavailable;
             case canERR_NOCARD:
-                return libssm2::eStatus::BackendUnavailable;
+                return subiediag::eStatus::BackendUnavailable;
             case canERR_NOTINITIALIZED:
-                return libssm2::eStatus::NotOpen;
+                return subiediag::eStatus::NotOpen;
             case canERR_INVHANDLE:
-                return libssm2::eStatus::NotOpen;
+                return subiediag::eStatus::NotOpen;
             case canERR_INTERRUPTED:
-                return libssm2::eStatus::Timeout;
+                return subiediag::eStatus::Timeout;
             case canERR_DRIVER:
-                return libssm2::eStatus::BackendUnavailable;
+                return subiediag::eStatus::BackendUnavailable;
             case canERR_DRIVERLOAD:
-                return libssm2::eStatus::BackendUnavailable;
+                return subiediag::eStatus::BackendUnavailable;
             case canERR_DRIVERFAILED:
-                return libssm2::eStatus::BackendUnavailable;
+                return subiediag::eStatus::BackendUnavailable;
             case canERR_TXBUFOFL:
-                return libssm2::eStatus::BusError;
+                return subiediag::eStatus::BusError;
             case canERR_NOT_SUPPORTED:
-                return libssm2::eStatus::NotSupported;
+                return subiediag::eStatus::NotSupported;
             default:
-                return libssm2::eStatus::BackendUnavailable;
+                return subiediag::eStatus::BackendUnavailable;
             }
         }
 
@@ -120,11 +120,11 @@ namespace libssm2::backends
         return m_handle >= 0 && m_onBus;
     }
 
-    libssm2::eStatus KvaserCanBus::Open()
+    subiediag::eStatus KvaserCanBus::Open()
     {
         if (IsOpen())
         {
-            return libssm2::eStatus::Ok;
+            return subiediag::eStatus::Ok;
         }
         EnsureCanlibInit();
 
@@ -161,14 +161,14 @@ namespace libssm2::backends
         }
 
         m_onBus = true;
-        return libssm2::eStatus::Ok;
+        return subiediag::eStatus::Ok;
     }
 
-    libssm2::eStatus KvaserCanBus::Close()
+    subiediag::eStatus KvaserCanBus::Close()
     {
         if (m_handle < 0)
         {
-            return libssm2::eStatus::Ok;
+            return subiediag::eStatus::Ok;
         }
         if (m_onBus)
         {
@@ -180,18 +180,18 @@ namespace libssm2::backends
         return FromCanlibStatus(s);
     }
 
-    libssm2::eStatus KvaserCanBus::SetRxFilter(const uint32_t * /*ids*/, size_t /*count*/)
+    subiediag::eStatus KvaserCanBus::SetRxFilter(const uint32_t * /*ids*/, size_t /*count*/)
     {
         // Soft-only filtering. IsoTp drops frames whose ID doesn't match its
         // respId. Hardware filtering on Kvaser stays disabled.
-        return libssm2::eStatus::Ok;
+        return subiediag::eStatus::Ok;
     }
 
-    libssm2::eStatus KvaserCanBus::Send(const libssm2::tCanFrame &frame, uint32_t timeoutMs)
+    subiediag::eStatus KvaserCanBus::Send(const subiediag::tCanFrame &frame, uint32_t timeoutMs)
     {
         if (!IsOpen())
         {
-            return libssm2::eStatus::NotOpen;
+            return subiediag::eStatus::NotOpen;
         }
         const unsigned int flags = frame.extended ? canMSG_EXT : canMSG_STD;
         const canStatus    s     = canWriteWait(static_cast<canHandle>(m_handle),
@@ -203,15 +203,15 @@ namespace libssm2::backends
         return FromCanlibStatus(s);
     }
 
-    libssm2::eStatus KvaserCanBus::Receive(libssm2::tCanFrame *out, uint32_t timeoutMs)
+    subiediag::eStatus KvaserCanBus::Receive(subiediag::tCanFrame *out, uint32_t timeoutMs)
     {
         if (out == nullptr)
         {
-            return libssm2::eStatus::InvalidFrame;
+            return subiediag::eStatus::InvalidFrame;
         }
         if (!IsOpen())
         {
-            return libssm2::eStatus::NotOpen;
+            return subiediag::eStatus::NotOpen;
         }
 
         long          id      = 0;
@@ -227,14 +227,14 @@ namespace libssm2::backends
         }
 
         out->id       = static_cast<uint32_t>(id);
-        out->dlc      = static_cast<uint8_t>(dlc > libssm2::c_canMaxDataLen ? libssm2::c_canMaxDataLen : dlc);
+        out->dlc      = static_cast<uint8_t>(dlc > subiediag::c_canMaxDataLen ? subiediag::c_canMaxDataLen : dlc);
         out->extended = (flags & canMSG_EXT) != 0;
         // CANLIB's default time resolution is 10us per tick. Multiply to land
         // in microseconds. Not calibrated against the wall clock -- use as a
         // monotonic timestamp only.
         out->timestampUs = static_cast<uint64_t>(ticks) * 10ULL;
         memcpy(out->data, data, out->dlc);
-        return libssm2::eStatus::Ok;
+        return subiediag::eStatus::Ok;
     }
 
     size_t KvaserCanBus::ListChannels(tChannelInfo *out, size_t maxChannels) noexcept
@@ -270,4 +270,4 @@ namespace libssm2::backends
         return total;
     }
 
-}  // namespace libssm2::backends
+}  // namespace subiediag::backends

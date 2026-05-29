@@ -15,11 +15,11 @@
 // `pad` is 0x00 for single-shot. The streaming variant (bit 0 set) is
 // reserved for the deferred continuous-mode implementation.
 
-#include "libssm2/Ssm2.h"
+#include "subiediag/Ssm2.h"
 
 #include <string.h>
 
-namespace libssm2
+namespace subiediag
 {
 
     namespace
@@ -366,4 +366,4 @@ namespace libssm2
         return (m_init.capFlags[capByte - 1] & (1 << (capBit - 1))) != 0;
     }
 
-}  // namespace libssm2
+}  // namespace subiediag

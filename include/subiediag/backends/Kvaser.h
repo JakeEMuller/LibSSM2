@@ -1,9 +1,9 @@
-// libssm2/backends/Kvaser.h
+// subiediag/backends/Kvaser.h
 //
 // CANLIB-backed ICanBus implementation for Kvaser hardware (USBcan II,
 // Memorator, Leaf, ...). Windows-only.
 //
-// Build: gated by the CMake option LIBSSM2_BACKEND_KVASER. CMake auto-
+// Build: gated by the CMake option SUBIEDIAG_BACKEND_KVASER. CMake auto-
 // detects the Kvaser SDK under C:\Program Files (x86)\Kvaser\Canlib.
 //
 // This header intentionally does NOT include canlib.h or windows.h --
@@ -12,13 +12,13 @@
 
 #pragma once
 
-#include "libssm2/Can.h"
-#include "libssm2/Common.h"
+#include "subiediag/Can.h"
+#include "subiediag/Common.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
-namespace libssm2::backends
+namespace subiediag::backends
 {
 
     // Returned by KvaserCanBus::ListChannels(). One per CANLIB-visible channel.
@@ -28,7 +28,7 @@ namespace libssm2::backends
         char name[128];  // NUL-terminated device description from CANLIB
     };
 
-    class KvaserCanBus : public libssm2::ICanBus
+    class KvaserCanBus : public subiediag::ICanBus
     {
     public:
 
@@ -43,17 +43,17 @@ namespace libssm2::backends
         ~KvaserCanBus() override;
 
         // ICanBus overrides
-        [[nodiscard]] libssm2::eStatus Open() override;
-        [[nodiscard]] libssm2::eStatus Close() override;
+        [[nodiscard]] subiediag::eStatus Open() override;
+        [[nodiscard]] subiediag::eStatus Close() override;
         bool                           IsOpen() const noexcept override;
 
         // No-op on Kvaser by design. The IsoTp layer filters by respId
         // already; hardware filtering on Kvaser adds complexity without
         // material benefit for our use case.
-        [[nodiscard]] libssm2::eStatus SetRxFilter(const uint32_t *ids, size_t count) override;
+        [[nodiscard]] subiediag::eStatus SetRxFilter(const uint32_t *ids, size_t count) override;
 
-        [[nodiscard]] libssm2::eStatus Send(const libssm2::tCanFrame &frame, uint32_t timeoutMs) override;
-        [[nodiscard]] libssm2::eStatus Receive(libssm2::tCanFrame *out, uint32_t timeoutMs) override;
+        [[nodiscard]] subiediag::eStatus Send(const subiediag::tCanFrame &frame, uint32_t timeoutMs) override;
+        [[nodiscard]] subiediag::eStatus Receive(subiediag::tCanFrame *out, uint32_t timeoutMs) override;
 
         // Enumerate CANLIB-visible channels. Writes up to `maxChannels`
         // entries into `out` and returns the total CANLIB reports. If
@@ -68,4 +68,4 @@ namespace libssm2::backends
         bool    m_onBus  = false;
     };
 
-}  // namespace libssm2::backends
+}  // namespace subiediag::backends

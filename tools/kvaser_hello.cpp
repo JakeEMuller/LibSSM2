@@ -4,23 +4,23 @@
 // runs an SSM2 init, and prints the SSM ID + ROM ID + count of supported
 // cap-flag bits.
 //
-// Usage: libssm2_kvaser_hello [channel=0]
+// Usage: subiediag_kvaser_hello [channel=0]
 //
 // SAFETY: this program is read-only by construction. It never calls any
 // Write* method or UnlockWrites(). The library default-locked state would
 // reject writes anyway -- this is belt-and-suspenders.
 
-#include "libssm2/Common.h"
-#include "libssm2/Ssm2.h"
-#include "libssm2/backends/Kvaser.h"
+#include "subiediag/Common.h"
+#include "subiediag/Ssm2.h"
+#include "subiediag/backends/Kvaser.h"
 
 #include <cstdio>
 #include <cstdlib>
 
 int main(int argc, char **argv)
 {
-    using libssm2::backends::KvaserCanBus;
-    using libssm2::backends::tChannelInfo;
+    using subiediag::backends::KvaserCanBus;
+    using subiediag::backends::tChannelInfo;
 
     int channel = 0;
     if (argc >= 2)
@@ -48,15 +48,15 @@ int main(int argc, char **argv)
     busCfg.channel = channel;
     KvaserCanBus bus(busCfg);
 
-    libssm2::Ssm2Client::tConfig cfg;
+    subiediag::Ssm2Client::tConfig cfg;
     cfg.bus = &bus;
-    libssm2::Ssm2Client client(cfg);
+    subiediag::Ssm2Client client(cfg);
 
-    libssm2::tSsm2InitResponse init{};
-    const libssm2::eStatus     s = client.Connect(&init);
-    if (!libssm2::IsOk(s))
+    subiediag::tSsm2InitResponse init{};
+    const subiediag::eStatus     s = client.Connect(&init);
+    if (!subiediag::IsOk(s))
     {
-        const auto desc = libssm2::DescribeStatus(s);
+        const auto desc = subiediag::DescribeStatus(s);
         std::printf("Connect failed: %.*s\n", static_cast<int>(desc.size()), desc.data());
         return 2;
     }
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
     std::printf("ROM ID: %02X %02X %02X %02X %02X\n", init.romId[0], init.romId[1], init.romId[2], init.romId[3], init.romId[4]);
 
     int supported = 0;
-    for (size_t b = 0; b < libssm2::c_capFlagsLen; ++b)
+    for (size_t b = 0; b < subiediag::c_capFlagsLen; ++b)
     {
         uint8_t v = init.capFlags[b];
         while (v != 0)

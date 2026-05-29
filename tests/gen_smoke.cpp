@@ -5,20 +5,20 @@
 // includes the four core headers to parse-check them; nothing is constructed
 // from those types here (their implementations don't exist yet).
 
-#include "libssm2/Can.h"
-#include "libssm2/Common.h"
-#include "libssm2/IsoTp.h"
-#include "libssm2/Ssm2.h"
-#include "libssm2/SsmBaseTable.h"
+#include "subiediag/Can.h"
+#include "subiediag/Common.h"
+#include "subiediag/IsoTp.h"
+#include "subiediag/Ssm2.h"
+#include "subiediag/SsmBaseTable.h"
 
 #include <cstdio>
 
 namespace
 {
 
-    const char *StorageName(libssm2::eStorageType s) noexcept
+    const char *StorageName(subiediag::eStorageType s) noexcept
     {
-        using S = libssm2::eStorageType;
+        using S = subiediag::eStorageType;
         switch (s)
         {
         case S::Uint8:
@@ -45,7 +45,7 @@ namespace
 
 int main()
 {
-    using namespace libssm2;
+    using namespace subiediag;
 
     static_assert(c_ssmBaseTable.size() == 156, "ssmbase parameter count changed");
     static_assert(c_ssmBaseTable[0].cap.Gated(), "first entry must be flag-gated");
@@ -78,7 +78,7 @@ int main()
     static_assert(static_cast<uint8_t>(eSsm2Cmd::WriteBlock) == 0xB0);
     static_assert(static_cast<uint8_t>(eSsm2Rsp::Init) == 0xEA);  // observed init response code
 
-    std::printf("libssm2 generated-table smoke test\n");
+    std::printf("subiediag generated-table smoke test\n");
     std::printf("  entries:   %zu\n", c_ssmBaseTable.size());
 
     int gated = 0;

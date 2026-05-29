@@ -1,8 +1,8 @@
 // test_isotp.cpp -- ISO 15765-2 round-trip tests against MockCanBus.
 
-#include "libssm2/Can.h"
-#include "libssm2/Common.h"
-#include "libssm2/IsoTp.h"
+#include "subiediag/Can.h"
+#include "subiediag/Common.h"
+#include "subiediag/IsoTp.h"
 #include "MockCanBus.h"
 
 #include <cstdio>
@@ -11,13 +11,13 @@
 namespace
 {
 
-    using libssm2::c_canMaxDataLen;
-    using libssm2::DescribeStatus;
-    using libssm2::eStatus;
-    using libssm2::IsOk;
-    using libssm2::IsoTpTransport;
-    using libssm2::tCanFrame;
-    using libssm2_test::MockCanBus;
+    using subiediag::c_canMaxDataLen;
+    using subiediag::DescribeStatus;
+    using subiediag::eStatus;
+    using subiediag::IsOk;
+    using subiediag::IsoTpTransport;
+    using subiediag::tCanFrame;
+    using subiediag_test::MockCanBus;
 
     // --- tiny test harness ------------------------------------------------------
 

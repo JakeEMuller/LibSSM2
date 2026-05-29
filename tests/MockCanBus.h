@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "libssm2/Can.h"
-#include "libssm2/Common.h"
+#include "subiediag/Can.h"
+#include "subiediag/Common.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -23,31 +23,31 @@
 
 #include <vector>
 
-namespace libssm2_test
+namespace subiediag_test
 {
 
-    class MockCanBus : public libssm2::ICanBus
+    class MockCanBus : public subiediag::ICanBus
     {
     public:
 
         // Public test surface: inspect Tx, populate Rx.
-        std::vector<libssm2::tCanFrame> tx;  // frames captured from Send()
-        std::vector<libssm2::tCanFrame> rx;  // frames to feed back to Receive()
+        std::vector<subiediag::tCanFrame> tx;  // frames captured from Send()
+        std::vector<subiediag::tCanFrame> rx;  // frames to feed back to Receive()
 
         // Force the next Receive() to return this status instead of pulling from rx.
         // After one use, behavior reverts to the queue. (Default Ok.)
-        libssm2::eStatus forceReceiveStatus = libssm2::eStatus::Ok;
-        libssm2::eStatus forceSendStatus    = libssm2::eStatus::Ok;
+        subiediag::eStatus forceReceiveStatus = subiediag::eStatus::Ok;
+        subiediag::eStatus forceSendStatus    = subiediag::eStatus::Ok;
 
         void QueueRx(uint32_t id, uint8_t dlc, std::initializer_list<uint8_t> data)
         {
-            libssm2::tCanFrame f{};
+            subiediag::tCanFrame f{};
             f.id     = id;
             f.dlc    = dlc;
             size_t i = 0;
             for (uint8_t b : data)
             {
-                if (i >= libssm2::c_canMaxDataLen)
+                if (i >= subiediag::c_canMaxDataLen)
                 {
                     break;
                 }
@@ -58,45 +58,45 @@ namespace libssm2_test
 
         // --- ICanBus impl ------------------------------------------------------
 
-        libssm2::eStatus Open() override
+        subiediag::eStatus Open() override
         {
             m_isOpen = true;
-            return libssm2::eStatus::Ok;
+            return subiediag::eStatus::Ok;
         }
-        libssm2::eStatus Close() override
+        subiediag::eStatus Close() override
         {
             m_isOpen = false;
-            return libssm2::eStatus::Ok;
+            return subiediag::eStatus::Ok;
         }
         bool IsOpen() const noexcept override { return m_isOpen; }
 
-        libssm2::eStatus SetRxFilter(const uint32_t * /*ids*/, size_t /*count*/) override { return libssm2::eStatus::Ok; }
+        subiediag::eStatus SetRxFilter(const uint32_t * /*ids*/, size_t /*count*/) override { return subiediag::eStatus::Ok; }
 
-        libssm2::eStatus Send(const libssm2::tCanFrame &frame, uint32_t /*timeoutMs*/) override
+        subiediag::eStatus Send(const subiediag::tCanFrame &frame, uint32_t /*timeoutMs*/) override
         {
-            if (forceSendStatus != libssm2::eStatus::Ok)
+            if (forceSendStatus != subiediag::eStatus::Ok)
             {
                 return forceSendStatus;
             }
             tx.push_back(frame);
-            return libssm2::eStatus::Ok;
+            return subiediag::eStatus::Ok;
         }
 
-        libssm2::eStatus Receive(libssm2::tCanFrame *out, uint32_t /*timeoutMs*/) override
+        subiediag::eStatus Receive(subiediag::tCanFrame *out, uint32_t /*timeoutMs*/) override
         {
-            if (forceReceiveStatus != libssm2::eStatus::Ok)
+            if (forceReceiveStatus != subiediag::eStatus::Ok)
             {
-                const libssm2::eStatus s = forceReceiveStatus;
-                forceReceiveStatus       = libssm2::eStatus::Ok;
+                const subiediag::eStatus s = forceReceiveStatus;
+                forceReceiveStatus       = subiediag::eStatus::Ok;
                 return s;
             }
             if (rx.empty())
             {
-                return libssm2::eStatus::Timeout;
+                return subiediag::eStatus::Timeout;
             }
             *out = rx.front();
             rx.erase(rx.begin());
-            return libssm2::eStatus::Ok;
+            return subiediag::eStatus::Ok;
         }
 
     private:
@@ -104,4 +104,4 @@ namespace libssm2_test
         bool m_isOpen = true;
     };
 
-}  // namespace libssm2_test
+}  // namespace subiediag_test

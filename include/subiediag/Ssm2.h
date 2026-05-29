@@ -1,4 +1,4 @@
-// libssm2/Ssm2.h
+// subiediag/Ssm2.h
 //
 // High-level SSM2 client. Exposes the diagnostic command set (init, read
 // addresses, read block, write block, continuous read) on top of an
@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include "libssm2/Can.h"
-#include "libssm2/Common.h"
-#include "libssm2/IsoTp.h"
+#include "subiediag/Can.h"
+#include "subiediag/Common.h"
+#include "subiediag/IsoTp.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
-namespace libssm2
+namespace subiediag
 {
 
     // ---------------------------------------------------------------------------
@@ -220,4 +220,4 @@ namespace libssm2
         size_t                  m_ringTail             = 0;
     };
 
-}  // namespace libssm2
+}  // namespace subiediag
