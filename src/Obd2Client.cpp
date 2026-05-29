@@ -118,7 +118,6 @@ namespace subiediag
 
     Obd2Client::Obd2Client(const tConfig &cfg) noexcept
         : m_cfg(cfg)
-        , m_transport(cfg.bus, cfg.reqId, cfg.respId, cfg.padByte)
     {
     }
 
@@ -131,11 +130,11 @@ namespace subiediag
 
     eStatus Obd2Client::Connect(uint32_t timeoutMs)
     {
-        if (m_cfg.bus == nullptr)
+        if (m_cfg.transport == nullptr || m_cfg.transport->Bus() == nullptr)
         {
             return eStatus::BackendUnavailable;
         }
-        eStatus s = m_cfg.bus->Open();
+        eStatus s = m_cfg.transport->Bus()->Open();
         if (!IsOk(s))
         {
             return s;
@@ -168,6 +167,10 @@ namespace subiediag
 
     eStatus Obd2Client::ReadPid(uint8_t pid, uint8_t *out, size_t outCapacity, size_t *outLen, uint32_t timeoutMs)
     {
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
         if (out == nullptr || outLen == nullptr)
         {
             return eStatus::InvalidFrame;
@@ -184,7 +187,7 @@ namespace subiediag
         // but a few non-standard ones can be larger. 16 bytes is comfortable.
         uint8_t       resp[16];
         size_t        respLen = 0;
-        const eStatus s       = m_transport.Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s       = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
@@ -216,6 +219,10 @@ namespace subiediag
 
     eStatus Obd2Client::ReadDtcs(tDtc *out, size_t outCapacity, size_t *outCount, uint32_t timeoutMs)
     {
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
         if (out == nullptr || outCount == nullptr)
         {
             return eStatus::InvalidFrame;
@@ -231,7 +238,7 @@ namespace subiediag
         // DTCs is implied by (respLen - 1) / 2.
         uint8_t       resp[64];
         size_t        respLen = 0;
-        const eStatus s       = m_transport.Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s       = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
@@ -270,6 +277,10 @@ namespace subiediag
 
     eStatus Obd2Client::ClearDtcs(uint32_t timeoutMs)
     {
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
         // Request: [04] (no args)
         uint8_t req[1];
         req[0] = static_cast<uint8_t>(eObd2Mode::ClearDtcs);
@@ -277,7 +288,7 @@ namespace subiediag
         // Response: [0x44] (no data)
         uint8_t       resp[8];
         size_t        respLen = 0;
-        const eStatus s       = m_transport.Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s       = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
@@ -297,6 +308,10 @@ namespace subiediag
 
     eStatus Obd2Client::GetVin(char *out, size_t outCapacity, size_t *outLen, uint32_t timeoutMs)
     {
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
         if (out == nullptr || outLen == nullptr)
         {
             return eStatus::InvalidFrame;
@@ -313,7 +328,7 @@ namespace subiediag
         // emit additional 0x00 padding before the VIN bytes; skip those.
         uint8_t       resp[32];
         size_t        respLen = 0;
-        const eStatus s       = m_transport.Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s       = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;

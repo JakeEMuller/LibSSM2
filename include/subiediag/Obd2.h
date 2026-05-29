@@ -154,11 +154,13 @@ namespace subiediag
 
         struct tConfig
         {
-            ICanBus *bus              = nullptr;             // required, non-owning
-            uint32_t reqId            = c_engineReqId;       // 0x7E0 (engine ECU)
-            uint32_t respId           = c_engineRespId;      // 0x7E8
-            uint32_t defaultTimeoutMs = c_defaultTimeoutMs;  // used when timeoutMs == 0
-            uint8_t  padByte          = 0x00;                // ISO-TP frame padding
+            // Non-owning pointer to the ISO-TP transport bound to the target
+            // ECU's (reqId, respId, padByte). App constructs the transport
+            // and keeps it alive for the client's lifetime. The same
+            // transport can be shared with an Ssm2Client addressing the same
+            // ECU.
+            IsoTpTransport *transport        = nullptr;
+            uint32_t        defaultTimeoutMs = c_defaultTimeoutMs;
         };
 
         explicit Obd2Client(const tConfig &cfg) noexcept;
@@ -170,9 +172,9 @@ namespace subiediag
 
         // -------- one-shot commands --------------------------------------------
 
-        // Open the bus and query Mode 01 PID 0x00 to populate the
-        // supported-PIDs bitmap. Equivalent to bus.Open() + a single
-        // ReadPid(SupportedPids01_20).
+        // Open the underlying bus (via the transport) and query Mode 01
+        // PID 0x00 to populate the supported-PIDs bitmap. Equivalent to
+        // transport->Bus()->Open() + one ReadPid(SupportedPids01_20).
         [[nodiscard]] eStatus Connect(uint32_t timeoutMs = 0);
 
         // Mode 01 - read one PID. `out` receives the raw data bytes (without
@@ -226,10 +228,12 @@ namespace subiediag
 
         uint32_t EffectiveTimeoutMs(uint32_t timeoutMs) const noexcept;
 
-        tConfig        m_cfg;
-        IsoTpTransport m_transport;
-        bool           m_connected       = false;
-        uint32_t       m_supportedPids00 = 0;  // PIDs 0x01..0x20 bitmap, MSB = 0x01
+        // True iff cfg.transport is a usable non-null pointer.
+        bool HasTransport() const noexcept { return m_cfg.transport != nullptr; }
+
+        tConfig  m_cfg;
+        bool     m_connected       = false;
+        uint32_t m_supportedPids00 = 0;  // PIDs 0x01..0x20 bitmap, MSB = 0x01
     };
 
 }  // namespace subiediag

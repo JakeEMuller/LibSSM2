@@ -48,8 +48,10 @@ int main(int argc, char **argv)
     busCfg.channel = channel;
     KvaserCanBus bus(busCfg);
 
+    subiediag::IsoTpTransport transport(&bus, subiediag::c_engineReqId, subiediag::c_engineRespId);
+
     subiediag::Ssm2Client::tConfig cfg;
-    cfg.bus = &bus;
+    cfg.transport = &transport;
     subiediag::Ssm2Client client(cfg);
 
     subiediag::tSsm2InitResponse init{};

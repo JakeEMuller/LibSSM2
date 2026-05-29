@@ -29,6 +29,7 @@ namespace
     using subiediag::eSsm2Rsp;
     using subiediag::eStatus;
     using subiediag::IsOk;
+    using subiediag::IsoTpTransport;
     using subiediag::Ssm2Client;
     using subiediag::tSsm2InitResponse;
     using subiediag_test::MockCanBus;
@@ -151,21 +152,17 @@ namespace
         }
     }
 
-    Ssm2Client MakeClient(MockCanBus &bus)
-    {
-        Ssm2Client::tConfig cfg;
-        cfg.bus = &bus;
-        return Ssm2Client(cfg);
-    }
-
     // --- tests ----------------------------------------------------------------
 
     // Init: feed back the response captured from the user's 2008 Impreza.
     // Verifies request bytes on the wire, response decode, and IsSupported().
     void test_init_decodes_real_init_response()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         // Real init response (105 bytes) from the user's car.
         // Layout: EA SSM(3)=A2 10 02  ROM(5)=51 12 18 80 07  CAP(96)
@@ -221,8 +218,11 @@ namespace
     // Init: response with the wrong response code -> ProtocolError.
     void test_init_rejects_bad_response_code()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         std::vector<uint8_t> payload(105, 0x00);
         payload[0] = 0x00;  // wrong (should be 0xEA)
@@ -237,8 +237,11 @@ namespace
     // frame on both directions.
     void test_read_addresses_single_addr_sf()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         QueueIsoTpSingleFrame(bus, c_engineRespId, {static_cast<uint8_t>(eSsm2Rsp::ReadAddresses), 0x99});
 
@@ -260,8 +263,11 @@ namespace
     // ReadBlock: A0 + 3-byte addr + count-1, response is E0 + N bytes.
     void test_read_block()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         // Response: E0 followed by 4 data bytes -> 5-byte payload, single frame.
         QueueIsoTpSingleFrame(bus, c_engineRespId, {static_cast<uint8_t>(eSsm2Rsp::ReadBlock), 0xDE, 0xAD, 0xBE, 0xEF});
@@ -285,8 +291,11 @@ namespace
     // ReadBlock rejects bad response sizes / codes.
     void test_read_block_protocol_error_on_short_response()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         // ECU returned only 3 bytes instead of 5.
         QueueIsoTpSingleFrame(bus, c_engineRespId, {static_cast<uint8_t>(eSsm2Rsp::ReadBlock), 0x11, 0x22});
@@ -298,8 +307,11 @@ namespace
     // WriteAddress: round-trip, ECU echoes the value.
     void test_write_address()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
         CHECK(client.UnlockWrites("I UNDERSTAND THIS CAN DAMAGE MY VEHICLE"));
 
         QueueIsoTpSingleFrame(bus, c_engineRespId, {static_cast<uint8_t>(eSsm2Rsp::WriteAddress), 0x55});
@@ -319,8 +331,11 @@ namespace
     // WriteAddress: ECU echoes the WRONG value -> ProtocolError.
     void test_write_address_echo_mismatch()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
         CHECK(client.UnlockWrites("I UNDERSTAND THIS CAN DAMAGE MY VEHICLE"));
 
         QueueIsoTpSingleFrame(bus, c_engineRespId, {static_cast<uint8_t>(eSsm2Rsp::WriteAddress), 0x66});
@@ -331,8 +346,11 @@ namespace
     // WriteBlock: B0 + addr + data, ECU echoes the data.
     void test_write_block()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
         CHECK(client.UnlockWrites("I UNDERSTAND THIS CAN DAMAGE MY VEHICLE"));
 
         const uint8_t data[] = {0x01, 0x02, 0x03};
@@ -356,8 +374,11 @@ namespace
     // Pre-init guard: IsSupported() returns false before Init().
     void test_issupported_pre_init()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
         CHECK(!client.IsInitialized());
         CHECK(!client.IsSupported(1, 1));
     }
@@ -366,8 +387,11 @@ namespace
     // arg-validation paths (not the write-protection path).
     void test_invalid_args()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
         CHECK(client.UnlockWrites("I UNDERSTAND THIS CAN DAMAGE MY VEHICLE"));
 
         uint8_t buf[4] = {};
@@ -384,8 +408,11 @@ namespace
     // Writes are blocked by default (no unlock).
     void test_writes_blocked_by_default()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         CHECK(!client.WritesUnlocked());
         CHECK_STATUS(client.WriteAddress(0x100, 0x55), eStatus::NotSupported);
@@ -400,8 +427,11 @@ namespace
     // Wrong unlock string is a no-op.
     void test_writes_unlock_wrong_phrase()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         CHECK(!client.UnlockWrites("i understand this can damage my ecu"));  // wrong case
         CHECK(!client.UnlockWrites("I UNDERSTAND THIS"));                    // truncated
@@ -415,8 +445,11 @@ namespace
     // Correct phrase unlocks, then LockWrites() relocks.
     void test_writes_unlock_relock()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         CHECK(client.UnlockWrites("I UNDERSTAND THIS CAN DAMAGE MY VEHICLE"));
         CHECK(client.WritesUnlocked());
@@ -432,7 +465,10 @@ namespace
         MockCanBus bus;
         (void)bus.Close();  // start closed so we can verify Connect opens it
         CHECK(!bus.IsOpen());
-        auto client = MakeClient(bus);
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         // 105-byte init response (same shape as the real-car test).
         std::vector<uint8_t> payload = {0xEA, 0xA2, 0x10, 0x02, 0x51, 0x12, 0x18, 0x80, 0x07};
@@ -449,11 +485,11 @@ namespace
         CHECK(init.romId[0] == 0x51);
     }
 
-    // Connect() with no bus returns BackendUnavailable, doesn't crash.
-    void test_connect_no_bus()
+    // Connect() with no transport returns BackendUnavailable, doesn't crash.
+    void test_connect_no_transport()
     {
         Ssm2Client::tConfig cfg;
-        cfg.bus = nullptr;
+        cfg.transport = nullptr;
         Ssm2Client        client(cfg);
         tSsm2InitResponse init{};
         CHECK_STATUS(client.Connect(&init), eStatus::BackendUnavailable);
@@ -462,8 +498,11 @@ namespace
     // Continuous-mode methods are placeholders for now.
     void test_continuous_not_supported()
     {
-        MockCanBus bus;
-        auto       client      = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
 
         const uint32_t addrs[] = {0x100};
         CHECK_STATUS(client.StartContinuous(addrs, 1), eStatus::NotSupported);
@@ -492,7 +531,7 @@ int main()
     RUN(test_writes_unlock_wrong_phrase);
     RUN(test_writes_unlock_relock);
     RUN(test_connect_opens_and_inits);
-    RUN(test_connect_no_bus);
+    RUN(test_connect_no_transport);
     RUN(test_issupported_pre_init);
     RUN(test_invalid_args);
     RUN(test_continuous_not_supported);

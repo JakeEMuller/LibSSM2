@@ -28,6 +28,7 @@ namespace
     using subiediag::eStatus;
     using subiediag::FindObd2Pid;
     using subiediag::IsOk;
+    using subiediag::IsoTpTransport;
     using subiediag::Obd2Client;
     using subiediag::Obd2DecodePid;
     using subiediag::tDtc;
@@ -147,13 +148,6 @@ namespace
         }
     }
 
-    Obd2Client MakeClient(MockCanBus &bus)
-    {
-        Obd2Client::tConfig cfg;
-        cfg.bus = &bus;
-        return Obd2Client(cfg);
-    }
-
     // --- tests ----------------------------------------------------------------
 
     // Connect issues Mode 01 PID 00 and stores the supported-PIDs bitmap.
@@ -161,7 +155,10 @@ namespace
     {
         MockCanBus bus;
         (void)bus.Close();
-        auto client = MakeClient(bus);
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
         // Mode 01 PID 0x00 response with PIDs 04, 05, 0C, 0D supported
         // (bits set: 0x04=byte 0 bit 4, 0x05=byte 0 bit 3, 0x0C=byte 1 bit 4,
@@ -195,8 +192,11 @@ namespace
     // ReadPid for engine RPM. Response: 41 0C A B with raw 0x0FA0 -> 1000 rpm.
     void test_read_pid_engine_rpm()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
         QueueIsoTpSingleFrame(bus, c_engineRespId, {0x41, 0x0C, 0x0F, 0xA0});
 
@@ -222,8 +222,11 @@ namespace
     // ReadPid raw uint8 overload (caller has an unknown PID).
     void test_read_pid_raw_uint8()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
         QueueIsoTpSingleFrame(bus, c_engineRespId, {0x41, 0x42, 0x36, 0xB0});  // CMV ~14V
 
@@ -243,8 +246,11 @@ namespace
     // PID echo mismatch -> ProtocolError.
     void test_read_pid_echo_mismatch()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
         // Asked for 0x0C, ECU echoed 0x0D
         QueueIsoTpSingleFrame(bus, c_engineRespId, {0x41, 0x0D, 0x00, 0x40});
@@ -257,8 +263,11 @@ namespace
     // Mode 03 with two DTCs: P0420 and U0101.
     void test_read_dtcs()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
         // P0420: category P (00), code 0x0420 -> hi=0x04, lo=0x20
         // U0101: category U (11 -> top 2 bits), code 0x0101 -> hi=0xC1, lo=0x01
@@ -289,8 +298,11 @@ namespace
     // No DTCs stored: response is just [0x43].
     void test_read_dtcs_empty()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
         QueueIsoTpSingleFrame(bus, c_engineRespId, {0x43});
 
@@ -303,8 +315,11 @@ namespace
     // Mode 04 clear: no unlock required.
     void test_clear_dtcs_no_unlock_needed()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
         QueueIsoTpSingleFrame(bus, c_engineRespId, {0x44});
 
@@ -319,8 +334,11 @@ namespace
     // Mode 09 PID 02 - VIN over multi-frame.
     void test_get_vin()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
         // Payload: 49 02 01 + 17-char VIN
         // Example VIN: "JF1GH7E69BG817403"
@@ -366,8 +384,11 @@ namespace
     // IsPidSupported returns false before Connect succeeds.
     void test_is_pid_supported_pre_connect()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
         CHECK(!client.IsConnected());
         CHECK(!client.IsPidSupported(ePid::EngineRpm));
     }
@@ -375,8 +396,11 @@ namespace
     // Wrong response code on Mode 04 -> ProtocolError.
     void test_clear_dtcs_bad_response()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
         // ECU returned 0x7F (negative response code) instead of 0x44.
         QueueIsoTpSingleFrame(bus, c_engineRespId, {0x7F, 0x04, 0x11});
@@ -437,10 +461,13 @@ namespace
     // Null arg handling.
     void test_null_args()
     {
-        MockCanBus bus;
-        auto       client = MakeClient(bus);
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
 
-        size_t len        = 0;
+        size_t len = 0;
         CHECK_STATUS(client.ReadPid(ePid::EngineRpm, nullptr, 4, &len), eStatus::InvalidFrame);
         uint8_t buf[4] = {};
         CHECK_STATUS(client.ReadPid(ePid::EngineRpm, buf, 4, nullptr), eStatus::InvalidFrame);

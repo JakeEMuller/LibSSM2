@@ -1,7 +1,7 @@
 // Ssm2Client.cpp -- SSM2 command set on top of IsoTpTransport.
 //
 // Each command serializes its request into a small stack-resident scratch
-// buffer, calls m_transport.Exchange(), and validates the response code +
+// buffer, calls m_cfg.transport->Exchange(), and validates the response code +
 // length. No heap allocation; the only "internal state" we accumulate is the
 // 0xAA init response so IsSupported() / CapFlags() can be queried later.
 //
@@ -48,7 +48,6 @@ namespace subiediag
 
     Ssm2Client::Ssm2Client(const tConfig &cfg) noexcept
         : m_cfg(cfg)
-        , m_transport(cfg.bus, cfg.reqId, cfg.respId, cfg.padByte)
     {
     }
 
@@ -61,6 +60,10 @@ namespace subiediag
 
     eStatus Ssm2Client::Init(tSsm2InitResponse *out, uint32_t timeoutMs)
     {
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
         if (out == nullptr)
         {
             return eStatus::InvalidFrame;
@@ -73,7 +76,7 @@ namespace subiediag
         uint8_t          resp[c_initRespLen];
         size_t           respLen = 0;
 
-        const eStatus s          = m_transport.Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s          = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
@@ -101,11 +104,11 @@ namespace subiediag
 
     eStatus Ssm2Client::Connect(tSsm2InitResponse *out, uint32_t timeoutMs)
     {
-        if (m_cfg.bus == nullptr)
+        if (m_cfg.transport == nullptr || m_cfg.transport->Bus() == nullptr)
         {
             return eStatus::BackendUnavailable;
         }
-        const eStatus s = m_cfg.bus->Open();
+        const eStatus s = m_cfg.transport->Bus()->Open();
         if (!IsOk(s))
         {
             return s;
@@ -117,6 +120,10 @@ namespace subiediag
 
     eStatus Ssm2Client::ReadAddresses(const uint32_t *addrs, size_t addrCount, uint8_t *out, uint32_t timeoutMs)
     {
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
         if (addrs == nullptr || out == nullptr)
         {
             return eStatus::InvalidFrame;
@@ -144,7 +151,7 @@ namespace subiediag
         uint8_t resp[1 + c_maxAddrsPerRead];
         size_t  respLen = 0;
 
-        const eStatus s = m_transport.Exchange(req, reqLen, resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s = m_cfg.transport->Exchange(req, reqLen, resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
@@ -167,6 +174,10 @@ namespace subiediag
 
     eStatus Ssm2Client::ReadBlock(uint32_t startAddr, uint8_t *out, size_t outLen, uint32_t timeoutMs)
     {
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
         if (out == nullptr)
         {
             return eStatus::InvalidFrame;
@@ -191,7 +202,7 @@ namespace subiediag
         uint8_t resp[1 + c_maxReadBlockSize];
         size_t  respLen = 0;
 
-        const eStatus s = m_transport.Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
@@ -218,6 +229,10 @@ namespace subiediag
         {
             return eStatus::NotSupported;
         }
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
         if (addr > 0xFFFFFF)
         {
             return eStatus::InvalidFrame;
@@ -233,7 +248,7 @@ namespace subiediag
         uint8_t resp[2];
         size_t  respLen = 0;
 
-        const eStatus s = m_transport.Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
@@ -263,6 +278,10 @@ namespace subiediag
         {
             return eStatus::NotSupported;
         }
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
         if (data == nullptr)
         {
             return eStatus::InvalidFrame;
@@ -287,7 +306,7 @@ namespace subiediag
         uint8_t resp[1 + c_maxWriteBlockSize];
         size_t  respLen = 0;
 
-        const eStatus s = m_transport.Exchange(req, reqLen, resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s = m_cfg.transport->Exchange(req, reqLen, resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;

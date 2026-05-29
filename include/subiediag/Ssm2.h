@@ -5,9 +5,11 @@
 // IsoTpTransport wrapped around a non-owning ICanBus.
 //
 // Lifetime:
-//   - The ICanBus pointed to by tConfig::bus must outlive the Ssm2Client.
-//   - Construct one Ssm2Client per ECU. Multiple clients can share one bus;
-//     each filters incoming frames by its own respId at the IsoTp layer.
+//   - tConfig::transport must point at an IsoTpTransport that outlives the
+//     Ssm2Client. The transport itself holds the ICanBus pointer and the
+//     ECU (reqId, respId, padByte) it speaks to.
+//   - Construct one Ssm2Client per ECU. Two clients on the same ECU (e.g.
+//     Ssm2Client + Obd2Client on 0x7E0/0x7E8) can share one transport.
 //
 // Threading: not thread-safe. Each Ssm2Client is single-owner; the app
 // handles any threading model it wants on top of these synchronous calls.
@@ -97,11 +99,14 @@ namespace subiediag
 
         struct tConfig
         {
-            ICanBus *bus              = nullptr;             // required, non-owning
-            uint32_t reqId            = c_engineReqId;       // engine ECU request
-            uint32_t respId           = c_engineRespId;      // engine ECU response
-            uint32_t defaultTimeoutMs = c_defaultTimeoutMs;  // used when a call passes timeoutMs == 0
-            uint8_t  padByte          = 0x00;                // fill byte for unused CAN frame positions
+            // Non-owning pointer to the ISO-TP transport bound to this ECU's
+            // (reqId, respId, padByte). The app constructs the transport and
+            // must keep it alive for the lifetime of the client. Sharing one
+            // transport between multiple clients addressing the same ECU
+            // (e.g. Ssm2Client + Obd2Client on 0x7E0/0x7E8) is the intended
+            // pattern.
+            IsoTpTransport *transport        = nullptr;
+            uint32_t        defaultTimeoutMs = c_defaultTimeoutMs;
         };
 
         explicit Ssm2Client(const tConfig &cfg) noexcept;
@@ -119,13 +124,12 @@ namespace subiediag
         // eSsm2Cmd::Init - ECU init. Populates *out with ssmId, romId, capFlags.
         [[nodiscard]] eStatus Init(tSsm2InitResponse *out, uint32_t timeoutMs = 0);
 
-        // Convenience: opens the bus, then performs Init() in one call.
-        // Equivalent to:
-        //   bus.Open();        // skipped if already open
+        // Convenience: opens the underlying bus (via the transport) then
+        // performs Init() in one call. Equivalent to:
+        //   transport->Bus()->Open();      // skipped if already open
         //   client.Init(out, timeoutMs);
-        // Use for the common case where the bus and client share lifetime.
-        // For complex lifetimes (e.g. multiple clients on one bus) keep the
-        // Open() and Init() calls separate.
+        // For complex lifetimes (e.g. several clients sharing one transport
+        // or one bus) keep the Open() and Init() calls separate.
         [[nodiscard]] eStatus Connect(tSsm2InitResponse *out, uint32_t timeoutMs = 0);
 
         // eSsm2Cmd::ReadAddresses - single-shot read of `addrCount` addresses.
@@ -199,8 +203,10 @@ namespace subiediag
         // Returns `timeoutMs` if non-zero, else m_cfg.defaultTimeoutMs.
         uint32_t EffectiveTimeoutMs(uint32_t timeoutMs) const noexcept;
 
+        // True iff cfg.transport is a usable non-null pointer.
+        bool HasTransport() const noexcept { return m_cfg.transport != nullptr; }
+
         tConfig           m_cfg;
-        IsoTpTransport    m_transport;
         tSsm2InitResponse m_init{};
         bool              m_initialized = false;
 
