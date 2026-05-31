@@ -44,7 +44,7 @@ namespace subiediag
         constexpr uint8_t c_fcWait     = 0x1;
         constexpr uint8_t c_fcOverflow = 0x2;
 
-        // ISO 15765-2 §9.6.5.5: STmin encoding.
+        // ISO 15765-2 Section 9.6.5.5: STmin encoding.
         //   0x00..0x7F -> 0..127 ms
         //   0xF1..0xF9 -> 100..900 us (multiples of 100 us)
         //   reserved   -> use longest allowed value (127 ms)
@@ -271,10 +271,10 @@ namespace subiediag
         // Honors the peer's BS (block size) and STmin (separation time). BS=0
         // means stream all CFs without re-handshaking. STmin is the minimum
         // gap between consecutive CFs; reserved values fall back to 127 ms
-        // per ISO 15765-2 §9.6.5.5.
-        size_t  sent           = c_ffPayloadFirst;
-        uint8_t seq            = 1;
-        uint8_t framesInBlock  = 0;
+        // per ISO 15765-2 Section 9.6.5.5.
+        size_t  sent          = c_ffPayloadFirst;
+        uint8_t seq           = 1;
+        uint8_t framesInBlock = 0;
         while (sent < payloadLen)
         {
             if (peerBs != 0 && framesInBlock == peerBs)
@@ -401,7 +401,7 @@ namespace subiediag
         }
         if (totalLen > outCapacity)
         {
-            // ISO 15765-2 §9.6.3.2: abort and send FC.OVFLW so the peer can
+            // ISO 15765-2 section 9.6.3.2: abort and send FC.OVFLW so the peer can
             // stop transmitting and surface the failure cleanly. Best-effort
             // -- still surface Overrun regardless of whether the FC reaches
             // the peer.

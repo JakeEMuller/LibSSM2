@@ -1,6 +1,6 @@
 // Obd2Client.cpp -- OBD-II command set on top of IsoTpTransport.
 //
-// Wire formats (SAE J1979 / ISO 15031-5:2015 §8 for ISO 15765-4):
+// Wire formats (SAE J1979 / ISO 15031-5:2015 Section 8 for ISO 15765-4):
 //   Mode 01    [01 PID]                           -> [41 PID data...]
 //   Mode 03    [03]                               -> [43 #DTC (DTC1) ... ]
 //                                                    (legacy ECUs may omit #DTC; see eObd2DtcFormat)
@@ -136,7 +136,7 @@ namespace subiediag
     {
         IsoTpTransport *t = m_cfg.transport;
 
-        eStatus s = t->SendRequest(req, reqLen, timeoutMs);
+        eStatus s         = t->SendRequest(req, reqLen, timeoutMs);
         if (!IsOk(s))
         {
             return s;
@@ -413,7 +413,7 @@ namespace subiediag
         req[0] = static_cast<uint8_t>(eObd2Mode::VehicleInfo);
         req[1] = c_obd2InfoVin;
 
-        // Response (ISO 15031-5:2015 §8.9.2.4, Table 212):
+        // Response (ISO 15031-5:2015 Section 8.9.2.4, Table 212):
         //   [0x49] [0x02] [NODI] [VIN data...]
         // NODI (Number Of Data Items) is 0x01 on CAN for VIN. Some ECUs
         // emit additional 0x00 padding before the VIN bytes; skip those.
