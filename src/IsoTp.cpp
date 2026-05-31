@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <string.h>
+#include <thread>
 
 namespace subiediag
 {
@@ -42,6 +43,23 @@ namespace subiediag
         constexpr uint8_t c_fcContinue = 0x0;
         constexpr uint8_t c_fcWait     = 0x1;
         constexpr uint8_t c_fcOverflow = 0x2;
+
+        // ISO 15765-2 §9.6.5.5: STmin encoding.
+        //   0x00..0x7F -> 0..127 ms
+        //   0xF1..0xF9 -> 100..900 us (multiples of 100 us)
+        //   reserved   -> use longest allowed value (127 ms)
+        uint32_t StMinRawToMicroseconds(uint8_t raw) noexcept
+        {
+            if (raw <= 0x7F)
+            {
+                return static_cast<uint32_t>(raw) * 1000U;
+            }
+            if (raw >= 0xF1 && raw <= 0xF9)
+            {
+                return static_cast<uint32_t>(raw - 0xF0) * 100U;
+            }
+            return 127U * 1000U;
+        }
 
         uint32_t MonotonicMs() noexcept
         {
@@ -116,13 +134,65 @@ namespace subiediag
             }
         }
 
-        void BuildFlowControl(tCanFrame &f, uint32_t id, uint8_t bs, uint8_t stMin, uint8_t padByte) noexcept
+        // Block on the peer's FlowControl reply, parsing BS / STmin out on
+        // ContinueToSend. Loops past FC.Wait frames. Returns FlowControlAbort
+        // on FC.Overflow, InvalidFrame on a malformed FC.
+        eStatus WaitForFlowControl(ICanBus *bus, uint32_t respId, Deadline &deadline, uint8_t *outBs, uint8_t *outStMinRaw)
+        {
+            while (true)
+            {
+                tCanFrame      fc;
+                const uint32_t r = deadline.Remaining();
+                if (r == 0)
+                {
+                    return eStatus::Timeout;
+                }
+                const eStatus s = bus->Receive(&fc, r);
+                if (!IsOk(s))
+                {
+                    return s;
+                }
+
+                if (fc.id != respId)
+                {
+                    continue;  // someone else's frame
+                }
+                if (fc.dlc < 3)
+                {
+                    return eStatus::InvalidFrame;
+                }
+                const uint8_t type = fc.data[0] >> 4;
+                if (type != static_cast<uint8_t>(eFrameType::FlowControl))
+                {
+                    return eStatus::InvalidFrame;
+                }
+
+                const uint8_t flag = fc.data[0] & 0x0F;
+                if (flag == c_fcContinue)
+                {
+                    *outBs       = fc.data[1];
+                    *outStMinRaw = fc.data[2];
+                    return eStatus::Ok;
+                }
+                if (flag == c_fcWait)
+                {
+                    continue;  // peer asks to wait
+                }
+                if (flag == c_fcOverflow)
+                {
+                    return eStatus::FlowControlAbort;
+                }
+                return eStatus::InvalidFrame;
+            }
+        }
+
+        void BuildFlowControl(tCanFrame &f, uint32_t id, uint8_t flowStatus, uint8_t bs, uint8_t stMin, uint8_t padByte) noexcept
         {
             f.timestampUs = 0;
             f.id          = id;
             f.dlc         = c_canMaxDataLen;
             f.extended    = false;
-            f.data[0]     = 0x30 | c_fcContinue;
+            f.data[0]     = static_cast<uint8_t>(0x30 | (flowStatus & 0x0F));
             f.data[1]     = bs;
             f.data[2]     = stMin;
             memset(&f.data[3], padByte, c_canMaxDataLen - 3);
@@ -187,59 +257,46 @@ namespace subiediag
         }
 
         // --- wait for flow control from peer (may receive Wait responses) ---
-        while (true)
+        uint8_t peerBs       = 0;
+        uint8_t peerStMinRaw = 0;
         {
-            tCanFrame      fc;
-            const uint32_t r = deadline.Remaining();
-            if (r == 0)
-            {
-                return eStatus::Timeout;
-            }
-            const eStatus s = m_pBus->Receive(&fc, r);
+            const eStatus s = WaitForFlowControl(m_pBus, m_respId, deadline, &peerBs, &peerStMinRaw);
             if (!IsOk(s))
             {
                 return s;
             }
-
-            if (fc.id != m_respId)
-            {
-                continue;  // someone else's frame
-            }
-            if (fc.dlc < 3)
-            {
-                return eStatus::InvalidFrame;
-            }
-            const uint8_t type = fc.data[0] >> 4;
-            if (type != static_cast<uint8_t>(eFrameType::FlowControl))
-            {
-                return eStatus::InvalidFrame;
-            }
-
-            const uint8_t flag = fc.data[0] & 0x0F;
-            if (flag == c_fcContinue)
-            {
-                break;
-            }
-            if (flag == c_fcWait)
-            {
-                continue;  // peer asks to wait
-            }
-            if (flag == c_fcOverflow)
-            {
-                return eStatus::FlowControlAbort;
-            }
-            return eStatus::InvalidFrame;
         }
 
-        // We intentionally ignore the peer's BS / STmin and stream all CFs back to
-        // back. For the SSM2 ECUs we care about, this matches the proven-working
-        // flow captured in the user's CAN log.
-
         // --- consecutive frames ---
-        size_t  sent = c_ffPayloadFirst;
-        uint8_t seq  = 1;
+        // Honors the peer's BS (block size) and STmin (separation time). BS=0
+        // means stream all CFs without re-handshaking. STmin is the minimum
+        // gap between consecutive CFs; reserved values fall back to 127 ms
+        // per ISO 15765-2 §9.6.5.5.
+        size_t  sent           = c_ffPayloadFirst;
+        uint8_t seq            = 1;
+        uint8_t framesInBlock  = 0;
         while (sent < payloadLen)
         {
+            if (peerBs != 0 && framesInBlock == peerBs)
+            {
+                // Block complete -- await the next FC before continuing.
+                const eStatus s = WaitForFlowControl(m_pBus, m_respId, deadline, &peerBs, &peerStMinRaw);
+                if (!IsOk(s))
+                {
+                    return s;
+                }
+                framesInBlock = 0;
+            }
+
+            if (framesInBlock > 0)
+            {
+                const uint32_t stMinUs = StMinRawToMicroseconds(peerStMinRaw);
+                if (stMinUs > 0)
+                {
+                    std::this_thread::sleep_for(std::chrono::microseconds(stMinUs));
+                }
+            }
+
             const size_t remaining = payloadLen - sent;
             const size_t chunk     = remaining < c_cfPayloadMax ? remaining : c_cfPayloadMax;
 
@@ -258,6 +315,7 @@ namespace subiediag
 
             sent += chunk;
             seq = (seq + 1) & 0x0F;  // wraps 15 -> 0
+            ++framesInBlock;
         }
 
         return eStatus::Ok;
@@ -343,6 +401,17 @@ namespace subiediag
         }
         if (totalLen > outCapacity)
         {
+            // ISO 15765-2 §9.6.3.2: abort and send FC.OVFLW so the peer can
+            // stop transmitting and surface the failure cleanly. Best-effort
+            // -- still surface Overrun regardless of whether the FC reaches
+            // the peer.
+            tCanFrame fc;
+            BuildFlowControl(fc, m_reqId, c_fcOverflow, /*bs=*/0, /*stMin=*/0, m_padByte);
+            const uint32_t r = deadline.Remaining();
+            if (r > 0)
+            {
+                (void)m_pBus->Send(fc, r);
+            }
             return eStatus::Overrun;
         }
 
@@ -352,7 +421,7 @@ namespace subiediag
         // --- send flow control back ---
         {
             tCanFrame fc;
-            BuildFlowControl(fc, m_reqId, c_fcBlockSize, c_fcStMin, m_padByte);
+            BuildFlowControl(fc, m_reqId, c_fcContinue, c_fcBlockSize, c_fcStMin, m_padByte);
             const uint32_t r = deadline.Remaining();
             if (r == 0)
             {

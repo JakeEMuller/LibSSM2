@@ -269,9 +269,10 @@ namespace
         cfg.transport = &transport;
         Obd2Client client(cfg);
 
+        // Response is [0x43, count=2, DTC1_hi, DTC1_lo, DTC2_hi, DTC2_lo].
         // P0420: category P (00), code 0x0420 -> hi=0x04, lo=0x20
         // U0101: category U (11 -> top 2 bits), code 0x0101 -> hi=0xC1, lo=0x01
-        QueueIsoTpSingleFrame(bus, c_engineRespId, {0x43, 0x04, 0x20, 0xC1, 0x01});
+        QueueIsoTpSingleFrame(bus, c_engineRespId, {0x43, 0x02, 0x04, 0x20, 0xC1, 0x01});
 
         tDtc   dtcs[8] = {};
         size_t count   = 0;
@@ -295,8 +296,50 @@ namespace
         CHECK(bus.tx[0].data[1] == static_cast<uint8_t>(eObd2Mode::ShowStoredDtcs));
     }
 
-    // No DTCs stored: response is just [0x43].
+    // No DTCs stored: response is [0x43, 0x00] (count = 0, per ISO 15031-5
+    // §8.3.2.2 Table 174 -- DTC bytes are conditional on #DTC > 0).
     void test_read_dtcs_empty()
+    {
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
+
+        QueueIsoTpSingleFrame(bus, c_engineRespId, {0x43, 0x00});
+
+        tDtc   dtcs[4] = {};
+        size_t count   = 0;
+        CHECK_OK(client.ReadDtcs(dtcs, 4, &count));
+        CHECK(count == 0);
+    }
+
+    // Legacy ECU emits no count byte. Spec-form parse fails (odd remainder)
+    // and the fallback parser recovers.
+    void test_read_dtcs_legacy_no_count_byte()
+    {
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
+
+        // [0x43, P0420_hi, P0420_lo, U0101_hi, U0101_lo] -- no count byte.
+        QueueIsoTpSingleFrame(bus, c_engineRespId, {0x43, 0x04, 0x20, 0xC1, 0x01});
+
+        tDtc   dtcs[4] = {};
+        size_t count   = 0;
+        CHECK_OK(client.ReadDtcs(dtcs, 4, &count));
+        CHECK(count == 2);
+        CHECK(dtcs[0].category == eDtcCategory::Powertrain);
+        CHECK(dtcs[0].code == 0x0420);
+        CHECK(dtcs[1].category == eDtcCategory::Network);
+        CHECK(dtcs[1].code == 0x0101);
+    }
+
+    // Bare [0x43] "no DTCs" reply from an older ECU. Spec parse rejects
+    // respLen < 2; fallback parses zero DTCs.
+    void test_read_dtcs_empty_legacy_via_fallback()
     {
         MockCanBus          bus;
         IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
@@ -487,6 +530,8 @@ int main()
     RUN(test_read_pid_echo_mismatch);
     RUN(test_read_dtcs);
     RUN(test_read_dtcs_empty);
+    RUN(test_read_dtcs_legacy_no_count_byte);
+    RUN(test_read_dtcs_empty_legacy_via_fallback);
     RUN(test_clear_dtcs_no_unlock_needed);
     RUN(test_get_vin);
     RUN(test_pid_table_decode);

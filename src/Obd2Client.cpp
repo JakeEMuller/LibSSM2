@@ -1,10 +1,11 @@
 // Obd2Client.cpp -- OBD-II command set on top of IsoTpTransport.
 //
-// Wire formats (SAE J1979 / ISO 15031-5):
+// Wire formats (SAE J1979 / ISO 15031-5:2015 §8 for ISO 15765-4):
 //   Mode 01    [01 PID]                           -> [41 PID data...]
-//   Mode 03    [03]                               -> [43 (DTC1)(DTC1)(DTC2)(DTC2)...]
+//   Mode 03    [03]                               -> [43 #DTC (DTC1) ... ]
+//                                                    (legacy ECUs may omit #DTC; see eObd2DtcFormat)
 //   Mode 04    [04]                               -> [44]
-//   Mode 09/02 [09 02]                            -> [49 02 NRR data(17)]
+//   Mode 09/02 [09 02]                            -> [49 02 NODI data(17)]
 //
 // Each DTC is 2 bytes: top 2 bits = category (P/C/B/U), low 14 bits = code.
 
@@ -126,6 +127,41 @@ namespace subiediag
         return timeoutMs == 0 ? m_cfg.defaultTimeoutMs : timeoutMs;
     }
 
+    eStatus Obd2Client::ExchangeWithPendingRetry(const uint8_t *req,
+                                                 size_t         reqLen,
+                                                 uint8_t       *resp,
+                                                 size_t         respCap,
+                                                 size_t        *respLen,
+                                                 uint32_t       timeoutMs)
+    {
+        IsoTpTransport *t = m_cfg.transport;
+
+        eStatus s = t->SendRequest(req, reqLen, timeoutMs);
+        if (!IsOk(s))
+        {
+            return s;
+        }
+
+        // Loop receives until we get a non-pending response. The ECU may
+        // send 0x7F <SID> 0x78 one or more times while it works on the
+        // request; each one re-arms our wait to P2*CAN_max.
+        uint32_t waitMs = timeoutMs;
+        while (true)
+        {
+            s = t->ReceiveResponse(resp, respCap, respLen, waitMs);
+            if (!IsOk(s))
+            {
+                return s;
+            }
+            if (*respLen >= 3 && resp[0] == c_obd2NegRespSid && resp[2] == c_obd2NrcRcrRp)
+            {
+                waitMs = c_obd2RcrRpTimeoutMs;
+                continue;
+            }
+            return eStatus::Ok;
+        }
+    }
+
     // -------- Connect ----------------------------------------------------------
 
     eStatus Obd2Client::Connect(uint32_t timeoutMs)
@@ -187,7 +223,7 @@ namespace subiediag
         // but a few non-standard ones can be larger. 16 bytes is comfortable.
         uint8_t       resp[16];
         size_t        respLen = 0;
-        const eStatus s       = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s       = ExchangeWithPendingRetry(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
@@ -217,6 +253,78 @@ namespace subiediag
 
     // -------- ReadDtcs ---------------------------------------------------------
 
+    namespace
+    {
+
+        // Decode a Mode 03 response payload into DTCs. `withCountByte`
+        // selects framing:
+        //   true  -- [0x43] [#DTC] [pairs...]   (ISO 15031-5 §8.3.2.2 Table 174)
+        //   false -- [0x43] [pairs...]          (legacy / pre-CAN form)
+        //
+        // Returns:
+        //   Ok            -- payload parsed cleanly into *outCount DTCs.
+        //   Overrun       -- parse OK but more DTCs than outCapacity.
+        //   ProtocolError -- framing did not match this variant (caller may
+        //                    retry with the other variant).
+        eStatus ParseMode03Response(const uint8_t *resp,
+                                    size_t         respLen,
+                                    bool           withCountByte,
+                                    tDtc          *out,
+                                    size_t         outCapacity,
+                                    size_t        *outCount) noexcept
+        {
+            if (respLen < 1 || static_cast<eObd2Rsp>(resp[0]) != eObd2Rsp::ShowStoredDtcs)
+            {
+                return eStatus::ProtocolError;
+            }
+
+            size_t pairsStart;
+            size_t pairsBytes;
+            if (withCountByte)
+            {
+                if (respLen < 2)
+                {
+                    return eStatus::ProtocolError;
+                }
+                pairsStart = 2;
+                pairsBytes = respLen - 2;
+                if (pairsBytes % 2 != 0)
+                {
+                    return eStatus::ProtocolError;
+                }
+                if (resp[1] != pairsBytes / 2)
+                {
+                    return eStatus::ProtocolError;
+                }
+            }
+            else
+            {
+                pairsStart = 1;
+                pairsBytes = respLen - 1;
+                if (pairsBytes % 2 != 0)
+                {
+                    return eStatus::ProtocolError;
+                }
+            }
+
+            const size_t numDtcs = pairsBytes / 2;
+            if (numDtcs > outCapacity)
+            {
+                return eStatus::Overrun;
+            }
+            for (size_t i = 0; i < numDtcs; ++i)
+            {
+                const uint8_t hi = resp[pairsStart + i * 2];
+                const uint8_t lo = resp[pairsStart + i * 2 + 1];
+                out[i].category  = static_cast<eDtcCategory>((hi >> 6) & 0x03);
+                out[i].code      = static_cast<uint16_t>((static_cast<uint16_t>(hi & 0x3F) << 8) | lo);
+            }
+            *outCount = numDtcs;
+            return eStatus::Ok;
+        }
+
+    }  // namespace
+
     eStatus Obd2Client::ReadDtcs(tDtc *out, size_t outCapacity, size_t *outCount, uint32_t timeoutMs)
     {
         if (!HasTransport())
@@ -233,44 +341,26 @@ namespace subiediag
         uint8_t req[1];
         req[0] = static_cast<uint8_t>(eObd2Mode::ShowStoredDtcs);
 
-        // Response: [0x43] [DTC1_hi DTC1_lo] [DTC2_hi DTC2_lo] ...
-        // Newer J1979 over CAN omits the leading count byte; the number of
-        // DTCs is implied by (respLen - 1) / 2.
+        // Response (ISO 15031-5:2015 §8.3.2.2 Table 174):
+        //   [0x43] [#DTC] [DTC1_hi DTC1_lo] ...
+        // Legacy / pre-CAN ECUs omit the count byte and stream pairs after
+        // the SID. We try the spec form first and fall back on a framing
+        // mismatch (ProtocolError). Overrun shortcuts -- it's a real
+        // buffer-size problem, not a format ambiguity.
         uint8_t       resp[64];
         size_t        respLen = 0;
-        const eStatus s       = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s       = ExchangeWithPendingRetry(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
         }
-        if (respLen < 1)
-        {
-            return eStatus::ProtocolError;
-        }
-        if (static_cast<eObd2Rsp>(resp[0]) != eObd2Rsp::ShowStoredDtcs)
-        {
-            return eStatus::ProtocolError;
-        }
 
-        const size_t dtcBytes = respLen - 1;
-        if (dtcBytes % 2 != 0)
+        const eStatus first = ParseMode03Response(resp, respLen, /*withCountByte=*/true, out, outCapacity, outCount);
+        if (first != eStatus::ProtocolError)
         {
-            return eStatus::ProtocolError;
+            return first;
         }
-        const size_t numDtcs = dtcBytes / 2;
-        if (numDtcs > outCapacity)
-        {
-            return eStatus::Overrun;
-        }
-        for (size_t i = 0; i < numDtcs; ++i)
-        {
-            const uint8_t hi = resp[1 + i * 2];
-            const uint8_t lo = resp[1 + i * 2 + 1];
-            out[i].category  = static_cast<eDtcCategory>((hi >> 6) & 0x03);
-            out[i].code      = static_cast<uint16_t>((static_cast<uint16_t>(hi & 0x3F) << 8) | lo);
-        }
-        *outCount = numDtcs;
-        return eStatus::Ok;
+        return ParseMode03Response(resp, respLen, /*withCountByte=*/false, out, outCapacity, outCount);
     }
 
     // -------- ClearDtcs --------------------------------------------------------
@@ -288,7 +378,7 @@ namespace subiediag
         // Response: [0x44] (no data)
         uint8_t       resp[8];
         size_t        respLen = 0;
-        const eStatus s       = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s       = ExchangeWithPendingRetry(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;
@@ -323,12 +413,13 @@ namespace subiediag
         req[0] = static_cast<uint8_t>(eObd2Mode::VehicleInfo);
         req[1] = c_obd2InfoVin;
 
-        // Response: [0x49] [0x02] [NRR] [data(17)]
-        // NRR (number of report rows) is typically 0x01 on CAN. Some ECUs
+        // Response (ISO 15031-5:2015 §8.9.2.4, Table 212):
+        //   [0x49] [0x02] [NODI] [VIN data...]
+        // NODI (Number Of Data Items) is 0x01 on CAN for VIN. Some ECUs
         // emit additional 0x00 padding before the VIN bytes; skip those.
         uint8_t       resp[32];
         size_t        respLen = 0;
-        const eStatus s       = m_cfg.transport->Exchange(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
+        const eStatus s       = ExchangeWithPendingRetry(req, sizeof(req), resp, sizeof(resp), &respLen, EffectiveTimeoutMs(timeoutMs));
         if (!IsOk(s))
         {
             return s;

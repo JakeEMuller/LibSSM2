@@ -103,6 +103,14 @@ namespace subiediag
     // The VIN is always 17 ASCII characters per ISO 3779.
     constexpr size_t c_obd2VinLength = 17;
 
+    // ISO 15031-5 / ISO 14229-2 negative-response markers.
+    constexpr uint8_t c_obd2NegRespSid = 0x7F;
+    constexpr uint8_t c_obd2NrcRcrRp   = 0x78;  // requestCorrectlyReceived-ResponsePending
+
+    // P2*CAN_max (ISO 15765-4) -- timeout the client extends to after seeing
+    // NRC 0x78. Spec defines 5 000 ms.
+    constexpr uint32_t c_obd2RcrRpTimeoutMs = 5000;
+
     // ---------------------------------------------------------------------------
     // DTC type and formatter
     // ---------------------------------------------------------------------------
@@ -230,6 +238,18 @@ namespace subiediag
 
         // True iff cfg.transport is a usable non-null pointer.
         bool HasTransport() const noexcept { return m_cfg.transport != nullptr; }
+
+        // Wraps transport->SendRequest + ReceiveResponse with NRC 0x78
+        // (RCR-RP / response-pending) handling: on a negative response whose
+        // NRC is 0x78, re-arms the receive timer to P2*CAN_max and waits for
+        // the real reply, per ISO 15765-4. Any other negative response is
+        // returned to the caller as-is in *resp / *respLen.
+        eStatus ExchangeWithPendingRetry(const uint8_t *req,
+                                         size_t         reqLen,
+                                         uint8_t       *resp,
+                                         size_t         respCap,
+                                         size_t        *respLen,
+                                         uint32_t       timeoutMs);
 
         tConfig  m_cfg;
         bool     m_connected       = false;
