@@ -15,7 +15,7 @@
 
 #include <string.h>
 
-namespace subiediag
+namespace subiediag::obd2
 {
 
     // ---------------------------------------------------------------------------
@@ -46,7 +46,7 @@ namespace subiediag
     {
         // Linear scan over the sorted table. ~200 entries; fine for this use case.
         // Could binary-search if/when the table grows much larger.
-        for (const auto &row : c_obd2DtcDb)
+        for (const auto &row : c_dtcDb)
         {
             if (row.category == dtc.category && row.code == dtc.code)
             {
@@ -78,11 +78,11 @@ namespace subiediag
     // PID table helpers
     // ---------------------------------------------------------------------------
 
-    const tObd2PidInfo *FindObd2Pid(uint8_t pid) noexcept
+    const tPidInfo *FindPid(uint8_t pid) noexcept
     {
         // Linear scan -- table is small (~25 entries). Could binary-search since
         // entries are sorted, but the constant factor doesn't matter here.
-        for (const auto &row : c_obd2PidTable)
+        for (const auto &row : c_pidTable)
         {
             if (row.pid == pid)
             {
@@ -92,13 +92,13 @@ namespace subiediag
         return nullptr;
     }
 
-    bool Obd2DecodePid(uint8_t pid, const uint8_t *raw, size_t rawLen, double *outValue) noexcept
+    bool DecodePid(uint8_t pid, const uint8_t *raw, size_t rawLen, double *outValue) noexcept
     {
         if (raw == nullptr || outValue == nullptr)
         {
             return false;
         }
-        const tObd2PidInfo *info = FindObd2Pid(pid);
+        const tPidInfo *info = FindPid(pid);
         if (info == nullptr || rawLen < info->bytes)
         {
             return false;
@@ -134,9 +134,9 @@ namespace subiediag
                                                  size_t        *respLen,
                                                  uint32_t       timeoutMs)
     {
-        IsoTpTransport *t = m_cfg.transport;
+        isotp::IsoTpTransport *t = m_cfg.transport;
 
-        eStatus s         = t->SendRequest(req, reqLen, timeoutMs);
+        eStatus s                = t->SendRequest(req, reqLen, timeoutMs);
         if (!IsOk(s))
         {
             return s;
@@ -153,9 +153,9 @@ namespace subiediag
             {
                 return s;
             }
-            if (*respLen >= 3 && resp[0] == c_obd2NegRespSid && resp[2] == c_obd2NrcRcrRp)
+            if (*respLen >= 3 && resp[0] == c_negRespSid && resp[2] == c_nrcRcrRp)
             {
-                waitMs = c_obd2RcrRpTimeoutMs;
+                waitMs = c_rcrRpTimeoutMs;
                 continue;
             }
             return eStatus::Ok;
@@ -411,7 +411,7 @@ namespace subiediag
         // Request: [09] [02]
         uint8_t req[2];
         req[0] = static_cast<uint8_t>(eObd2Mode::VehicleInfo);
-        req[1] = c_obd2InfoVin;
+        req[1] = c_infoVin;
 
         // Response (ISO 15031-5:2015 Section 8.9.2.4, Table 212):
         //   [0x49] [0x02] [NODI] [VIN data...]
@@ -432,28 +432,30 @@ namespace subiediag
         {
             return eStatus::ProtocolError;
         }
-        if (resp[1] != c_obd2InfoVin)
+        if (resp[1] != c_infoVin)
         {
             return eStatus::ProtocolError;
         }
 
-        // Skip [49 02 NRR] header and any leading 0x00 padding bytes.
+        // Skip [49 02 NODI] header and any leading 0x00 padding bytes.
         size_t vinStart = 3;
         while (vinStart < respLen && resp[vinStart] == 0x00)
         {
             ++vinStart;
         }
         const size_t vinLen = respLen - vinStart;
-        if (vinLen != c_obd2VinLength)
+        if (vinLen != c_vinLength)
         {
             return eStatus::ProtocolError;
         }
-        if (vinLen > outCapacity)
+        // Need room for the VIN plus a NUL terminator.
+        if (outCapacity < (vinLen + 1))
         {
             return eStatus::Overrun;
         }
         memcpy(out, &resp[vinStart], vinLen);
-        *outLen = vinLen;
+        out[vinLen] = '\0';
+        *outLen     = vinLen;  // count of VIN chars, excluding the NUL
         return eStatus::Ok;
     }
 
@@ -483,4 +485,4 @@ namespace subiediag
         return ((m_supportedPids00 >> (32 - pid)) & 0x1U) != 0;
     }
 
-}  // namespace subiediag
+}  // namespace subiediag::obd2

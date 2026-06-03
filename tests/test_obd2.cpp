@@ -15,24 +15,24 @@
 namespace
 {
 
-    using subiediag::c_canMaxDataLen;
-    using subiediag::c_engineReqId;
-    using subiediag::c_engineRespId;
-    using subiediag::DescribeDtc;
+    using subiediag::can::c_canMaxDataLen;
+    using subiediag::can::c_engineReqId;
+    using subiediag::can::c_engineRespId;
     using subiediag::DescribeStatus;
-    using subiediag::DtcToString;
-    using subiediag::eDtcCategory;
-    using subiediag::eObd2Mode;
-    using subiediag::eObd2Rsp;
-    using subiediag::ePid;
     using subiediag::eStatus;
-    using subiediag::FindObd2Pid;
     using subiediag::IsOk;
-    using subiediag::IsoTpTransport;
-    using subiediag::Obd2Client;
-    using subiediag::Obd2DecodePid;
-    using subiediag::tDtc;
-    using subiediag::tObd2PidInfo;
+    using subiediag::isotp::IsoTpTransport;
+    using subiediag::obd2::DescribeDtc;
+    using subiediag::obd2::DecodePid;
+    using subiediag::obd2::DtcToString;
+    using subiediag::obd2::eDtcCategory;
+    using subiediag::obd2::eObd2Mode;
+    using subiediag::obd2::eObd2Rsp;
+    using subiediag::obd2::ePid;
+    using subiediag::obd2::FindPid;
+    using subiediag::obd2::Obd2Client;
+    using subiediag::obd2::tDtc;
+    using subiediag::obd2::tPidInfo;
     using subiediag_test::MockCanBus;
 
     // --- tiny test harness ----------------------------------------------------
@@ -103,7 +103,7 @@ namespace
 
     void QueueIsoTpSingleFrame(MockCanBus &bus, uint32_t id, const std::vector<uint8_t> &payload)
     {
-        subiediag::tCanFrame f{};
+        subiediag::can::tCanFrame f{};
         f.id      = id;
         f.dlc     = c_canMaxDataLen;
         f.data[0] = static_cast<uint8_t>(payload.size());
@@ -118,7 +118,7 @@ namespace
     {
         const uint16_t total = static_cast<uint16_t>(payload.size());
 
-        subiediag::tCanFrame ff{};
+        subiediag::can::tCanFrame ff{};
         ff.id      = id;
         ff.dlc     = c_canMaxDataLen;
         ff.data[0] = static_cast<uint8_t>(0x10 | ((total >> 8) & 0x0F));
@@ -133,7 +133,7 @@ namespace
         uint8_t seq  = 1;
         while (sent < payload.size())
         {
-            subiediag::tCanFrame cf{};
+            subiediag::can::tCanFrame cf{};
             cf.id             = id;
             cf.dlc            = c_canMaxDataLen;
             cf.data[0]        = 0x20 | (seq & 0x0F);
@@ -215,7 +215,7 @@ namespace
 
         // Decode: (0x0F * 256 + 0xA0) / 4 = 4000 / 4 = 1000.0
         double rpm = 0;
-        CHECK(Obd2DecodePid(static_cast<uint8_t>(ePid::EngineRpm), out, outLen, &rpm));
+        CHECK(DecodePid(static_cast<uint8_t>(ePid::EngineRpm), out, outLen, &rpm));
         CHECK(rpm > 999.9 && rpm < 1000.1);
     }
 
@@ -239,7 +239,7 @@ namespace
 
         // Decode control module voltage: (0x36B0) / 1000 = 14000/1000 = 14.0V
         double volts = 0;
-        CHECK(Obd2DecodePid(0x42, out, outLen, &volts));
+        CHECK(DecodePid(0x42, out, outLen, &volts));
         CHECK(volts > 13.99 && volts < 14.01);
     }
 
@@ -398,13 +398,39 @@ namespace
         CHECK_OK(client.GetVin(out, sizeof(out), &outLen));
         CHECK(outLen == 17);
         CHECK(memcmp(out, vin, 17) == 0);
+        // GetVin must NUL-terminate so the result is a usable C string.
+        CHECK(out[17] == '\0');
+        CHECK(strcmp(out, vin) == 0);
+    }
+
+    // GetVin requires outCapacity >= c_vinLength + 1 (room for the NUL).
+    // A 17-byte buffer is one short and must be rejected.
+    void test_get_vin_overrun_no_room_for_nul()
+    {
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Obd2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Obd2Client client(cfg);
+
+        std::vector<uint8_t> payload = {0x49, 0x02, 0x01};
+        const char           vin[]   = "JF1GH7E69BG817403";
+        for (size_t i = 0; i < 17; ++i)
+        {
+            payload.push_back(static_cast<uint8_t>(vin[i]));
+        }
+        QueueIsoTpMultiFrame(bus, c_engineRespId, payload);
+
+        char   out[17] = {};  // exactly the VIN length, no room for NUL
+        size_t outLen  = 0;
+        CHECK_STATUS(client.GetVin(out, sizeof(out), &outLen), eStatus::Overrun);
     }
 
     // PID table sanity: known PIDs are findable, decode formulas work.
     void test_pid_table_decode()
     {
         // Coolant temp 0x05: A - 40. Raw 0x5B -> 91 - 40 = 51 C
-        const tObd2PidInfo *info = FindObd2Pid(0x05);
+        const tPidInfo *info = FindPid(0x05);
         CHECK(info != nullptr);
         if (info)
         {
@@ -414,14 +440,14 @@ namespace
 
         const uint8_t raw[] = {0x5B};
         double        val   = 0;
-        CHECK(Obd2DecodePid(0x05, raw, 1, &val));
+        CHECK(DecodePid(0x05, raw, 1, &val));
         CHECK(val > 50.9 && val < 51.1);
 
         // Unknown PID -> false
-        CHECK(!Obd2DecodePid(0xFF, raw, 1, &val));
+        CHECK(!DecodePid(0xFF, raw, 1, &val));
 
         // Too few bytes for 2-byte PID -> false
-        CHECK(!Obd2DecodePid(0x0C, raw, 1, &val));
+        CHECK(!DecodePid(0x0C, raw, 1, &val));
     }
 
     // IsPidSupported returns false before Connect succeeds.
@@ -534,6 +560,7 @@ int main()
     RUN(test_read_dtcs_empty_legacy_via_fallback);
     RUN(test_clear_dtcs_no_unlock_needed);
     RUN(test_get_vin);
+    RUN(test_get_vin_overrun_no_room_for_nul);
     RUN(test_pid_table_decode);
     RUN(test_is_pid_supported_pre_connect);
     RUN(test_clear_dtcs_bad_response);

@@ -19,7 +19,7 @@
 
 #include <string.h>
 
-namespace subiediag
+namespace subiediag::ssm2
 {
 
     namespace
@@ -58,7 +58,7 @@ namespace subiediag
 
     // -------- Init -------------------------------------------------------------
 
-    eStatus Ssm2Client::Init(tSsm2InitResponse *out, uint32_t timeoutMs)
+    eStatus Ssm2Client::Init(tInitResponse *out, uint32_t timeoutMs)
     {
         if (!HasTransport())
         {
@@ -102,7 +102,7 @@ namespace subiediag
 
     // -------- Connect (Open + Init) --------------------------------------------
 
-    eStatus Ssm2Client::Connect(tSsm2InitResponse *out, uint32_t timeoutMs)
+    eStatus Ssm2Client::Connect(tInitResponse *out, uint32_t timeoutMs)
     {
         if (m_cfg.transport == nullptr || m_cfg.transport->Bus() == nullptr)
         {
@@ -385,4 +385,4 @@ namespace subiediag
         return (m_init.capFlags[capByte - 1] & (1 << (capBit - 1))) != 0;
     }
 
-}  // namespace subiediag
+}  // namespace subiediag::ssm2

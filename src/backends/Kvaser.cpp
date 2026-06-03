@@ -11,7 +11,7 @@
 #include <mutex>
 #include <string.h>
 
-namespace subiediag::backends
+namespace subiediag::can
 {
 
     namespace
@@ -27,46 +27,46 @@ namespace subiediag::backends
             std::call_once(g_canlibInitFlag, []() { canInitializeLibrary(); });
         }
 
-        subiediag::eStatus FromCanlibStatus(canStatus s) noexcept
+        eStatus FromCanlibStatus(canStatus s) noexcept
         {
             switch (s)
             {
             case canOK:
-                return subiediag::eStatus::Ok;
+                return eStatus::Ok;
             case canERR_TIMEOUT:
-                return subiediag::eStatus::Timeout;
+                return eStatus::Timeout;
             case canERR_NOMSG:
-                return subiediag::eStatus::Timeout;
+                return eStatus::Timeout;
             case canERR_PARAM:
-                return subiediag::eStatus::InvalidFrame;
+                return eStatus::InvalidFrame;
             case canERR_NOMEM:
-                return subiediag::eStatus::BackendUnavailable;
+                return eStatus::BackendUnavailable;
             case canERR_HARDWARE:
-                return subiediag::eStatus::BackendUnavailable;
+                return eStatus::BackendUnavailable;
             case canERR_NOTFOUND:
-                return subiediag::eStatus::BackendUnavailable;
+                return eStatus::BackendUnavailable;
             case canERR_NOCHANNELS:
-                return subiediag::eStatus::BackendUnavailable;
+                return eStatus::BackendUnavailable;
             case canERR_NOCARD:
-                return subiediag::eStatus::BackendUnavailable;
+                return eStatus::BackendUnavailable;
             case canERR_NOTINITIALIZED:
-                return subiediag::eStatus::NotOpen;
+                return eStatus::NotOpen;
             case canERR_INVHANDLE:
-                return subiediag::eStatus::NotOpen;
+                return eStatus::NotOpen;
             case canERR_INTERRUPTED:
-                return subiediag::eStatus::Timeout;
+                return eStatus::Timeout;
             case canERR_DRIVER:
-                return subiediag::eStatus::BackendUnavailable;
+                return eStatus::BackendUnavailable;
             case canERR_DRIVERLOAD:
-                return subiediag::eStatus::BackendUnavailable;
+                return eStatus::BackendUnavailable;
             case canERR_DRIVERFAILED:
-                return subiediag::eStatus::BackendUnavailable;
+                return eStatus::BackendUnavailable;
             case canERR_TXBUFOFL:
-                return subiediag::eStatus::BusError;
+                return eStatus::BusError;
             case canERR_NOT_SUPPORTED:
-                return subiediag::eStatus::NotSupported;
+                return eStatus::NotSupported;
             default:
-                return subiediag::eStatus::BackendUnavailable;
+                return eStatus::BackendUnavailable;
             }
         }
 
@@ -120,11 +120,11 @@ namespace subiediag::backends
         return m_handle >= 0 && m_onBus;
     }
 
-    subiediag::eStatus KvaserCanBus::Open()
+    eStatus KvaserCanBus::Open()
     {
         if (IsOpen())
         {
-            return subiediag::eStatus::Ok;
+            return eStatus::Ok;
         }
         EnsureCanlibInit();
 
@@ -161,14 +161,14 @@ namespace subiediag::backends
         }
 
         m_onBus = true;
-        return subiediag::eStatus::Ok;
+        return eStatus::Ok;
     }
 
-    subiediag::eStatus KvaserCanBus::Close()
+    eStatus KvaserCanBus::Close()
     {
         if (m_handle < 0)
         {
-            return subiediag::eStatus::Ok;
+            return eStatus::Ok;
         }
         if (m_onBus)
         {
@@ -180,18 +180,18 @@ namespace subiediag::backends
         return FromCanlibStatus(s);
     }
 
-    subiediag::eStatus KvaserCanBus::SetRxFilter(const uint32_t * /*ids*/, size_t /*count*/)
+    eStatus KvaserCanBus::SetRxFilter(const uint32_t * /*ids*/, size_t /*count*/)
     {
         // Soft-only filtering. IsoTp drops frames whose ID doesn't match its
         // respId. Hardware filtering on Kvaser stays disabled.
-        return subiediag::eStatus::Ok;
+        return eStatus::Ok;
     }
 
-    subiediag::eStatus KvaserCanBus::Send(const subiediag::tCanFrame &frame, uint32_t timeoutMs)
+    eStatus KvaserCanBus::Send(const tCanFrame &frame, uint32_t timeoutMs)
     {
         if (!IsOpen())
         {
-            return subiediag::eStatus::NotOpen;
+            return eStatus::NotOpen;
         }
         const unsigned int flags = frame.extended ? canMSG_EXT : canMSG_STD;
         const canStatus    s     = canWriteWait(static_cast<canHandle>(m_handle),
@@ -203,15 +203,15 @@ namespace subiediag::backends
         return FromCanlibStatus(s);
     }
 
-    subiediag::eStatus KvaserCanBus::Receive(subiediag::tCanFrame *out, uint32_t timeoutMs)
+    eStatus KvaserCanBus::Receive(tCanFrame *out, uint32_t timeoutMs)
     {
         if (out == nullptr)
         {
-            return subiediag::eStatus::InvalidFrame;
+            return eStatus::InvalidFrame;
         }
         if (!IsOpen())
         {
-            return subiediag::eStatus::NotOpen;
+            return eStatus::NotOpen;
         }
 
         long          id      = 0;
@@ -227,14 +227,14 @@ namespace subiediag::backends
         }
 
         out->id       = static_cast<uint32_t>(id);
-        out->dlc      = static_cast<uint8_t>(dlc > subiediag::c_canMaxDataLen ? subiediag::c_canMaxDataLen : dlc);
+        out->dlc      = static_cast<uint8_t>(dlc > c_canMaxDataLen ? c_canMaxDataLen : dlc);
         out->extended = (flags & canMSG_EXT) != 0;
         // CANLIB's default time resolution is 10us per tick. Multiply to land
         // in microseconds. Not calibrated against the wall clock -- use as a
         // monotonic timestamp only.
         out->timestampUs = static_cast<uint64_t>(ticks) * 10ULL;
         memcpy(out->data, data, out->dlc);
-        return subiediag::eStatus::Ok;
+        return eStatus::Ok;
     }
 
     size_t KvaserCanBus::ListChannels(tChannelInfo *out, size_t maxChannels) noexcept
@@ -270,4 +270,4 @@ namespace subiediag::backends
         return total;
     }
 
-}  // namespace subiediag::backends
+}  // namespace subiediag::can

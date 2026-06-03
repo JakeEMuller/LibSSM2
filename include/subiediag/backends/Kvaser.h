@@ -18,7 +18,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace subiediag::backends
+namespace subiediag::can
 {
 
     // Returned by KvaserCanBus::ListChannels(). One per CANLIB-visible channel.
@@ -28,7 +28,7 @@ namespace subiediag::backends
         char name[128];  // NUL-terminated device description from CANLIB
     };
 
-    class KvaserCanBus : public subiediag::ICanBus
+    class KvaserCanBus : public ICanBus
     {
     public:
 
@@ -43,17 +43,17 @@ namespace subiediag::backends
         ~KvaserCanBus() override;
 
         // ICanBus overrides
-        [[nodiscard]] subiediag::eStatus Open() override;
-        [[nodiscard]] subiediag::eStatus Close() override;
-        bool                           IsOpen() const noexcept override;
+        [[nodiscard]] eStatus Open() override;
+        [[nodiscard]] eStatus Close() override;
+        bool                  IsOpen() const noexcept override;
 
         // No-op on Kvaser by design. The IsoTp layer filters by respId
         // already; hardware filtering on Kvaser adds complexity without
         // material benefit for our use case.
-        [[nodiscard]] subiediag::eStatus SetRxFilter(const uint32_t *ids, size_t count) override;
+        [[nodiscard]] eStatus SetRxFilter(const uint32_t *ids, size_t count) override;
 
-        [[nodiscard]] subiediag::eStatus Send(const subiediag::tCanFrame &frame, uint32_t timeoutMs) override;
-        [[nodiscard]] subiediag::eStatus Receive(subiediag::tCanFrame *out, uint32_t timeoutMs) override;
+        [[nodiscard]] eStatus Send(const tCanFrame &frame, uint32_t timeoutMs) override;
+        [[nodiscard]] eStatus Receive(tCanFrame *out, uint32_t timeoutMs) override;
 
         // Enumerate CANLIB-visible channels. Writes up to `maxChannels`
         // entries into `out` and returns the total CANLIB reports. If
@@ -68,4 +68,4 @@ namespace subiediag::backends
         bool    m_onBus  = false;
     };
 
-}  // namespace subiediag::backends
+}  // namespace subiediag::can

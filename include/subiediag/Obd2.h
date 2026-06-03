@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace subiediag
+namespace subiediag::obd2
 {
 
     // ---------------------------------------------------------------------------
@@ -98,18 +98,18 @@ namespace subiediag
     };
 
     // Mode 09 InfoType bytes.
-    constexpr uint8_t c_obd2InfoVin = 0x02;
+    constexpr uint8_t c_infoVin = 0x02;
 
     // The VIN is always 17 ASCII characters per ISO 3779.
-    constexpr size_t c_obd2VinLength = 17;
+    constexpr size_t c_vinLength = 17;
 
     // ISO 15031-5 / ISO 14229-2 negative-response markers.
-    constexpr uint8_t c_obd2NegRespSid = 0x7F;
-    constexpr uint8_t c_obd2NrcRcrRp   = 0x78;  // requestCorrectlyReceived-ResponsePending
+    constexpr uint8_t c_negRespSid = 0x7F;
+    constexpr uint8_t c_nrcRcrRp   = 0x78;  // requestCorrectlyReceived-ResponsePending
 
     // P2*CAN_max (ISO 15765-4) -- timeout the client extends to after seeing
     // NRC 0x78. Spec defines 5 000 ms.
-    constexpr uint32_t c_obd2RcrRpTimeoutMs = 5000;
+    constexpr uint32_t c_rcrRpTimeoutMs = 5000;
 
     // ---------------------------------------------------------------------------
     // DTC type and formatter
@@ -167,8 +167,8 @@ namespace subiediag
             // and keeps it alive for the client's lifetime. The same
             // transport can be shared with an Ssm2Client addressing the same
             // ECU.
-            IsoTpTransport *transport        = nullptr;
-            uint32_t        defaultTimeoutMs = c_defaultTimeoutMs;
+            isotp::IsoTpTransport *transport        = nullptr;
+            uint32_t               defaultTimeoutMs = c_defaultTimeoutMs;
         };
 
         explicit Obd2Client(const tConfig &cfg) noexcept;
@@ -209,10 +209,12 @@ namespace subiediag
         [[nodiscard]] eStatus ClearDtcs(uint32_t timeoutMs = 0);
 
         // Mode 09 PID 0x02 - read the Vehicle Identification Number.
-        // Writes up to `outCapacity` characters of the VIN into `out` and
-        // sets *outLen to the count (always c_obd2VinLength = 17 on success).
-        // `out` is NOT NUL-terminated; caller writes the terminator if
-        // outCapacity allows.
+        //
+        // Writes the 17-char VIN into `out` and appends a NUL terminator,
+        // so `outCapacity` must be at least c_vinLength + 1 = 18. Returns
+        // Overrun if the buffer is smaller. *outLen is set to the VIN
+        // character count (17), matching strlen() of the returned C string;
+        // the NUL is not counted.
         [[nodiscard]] eStatus GetVin(char *out, size_t outCapacity, size_t *outLen, uint32_t timeoutMs = 0);
 
         // -------- post-Connect accessors ---------------------------------------
@@ -256,4 +258,4 @@ namespace subiediag
         uint32_t m_supportedPids00 = 0;  // PIDs 0x01..0x20 bitmap, MSB = 0x01
     };
 
-}  // namespace subiediag
+}  // namespace subiediag::obd2

@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace subiediag
+namespace subiediag::ssm2
 {
 
     // ---------------------------------------------------------------------------
@@ -38,9 +38,8 @@ namespace subiediag
     constexpr size_t c_romIdLen    = 5;
     constexpr size_t c_capFlagsLen = 96;
 
-    // CAN IDs (c_engineReqId etc.) and c_defaultTimeoutMs live in Common.h --
-    // shared between SSM2 and OBD-II since both use the same ISO 15765-4
-    // ECU CAN-ID conventions.
+    // CAN IDs (subiediag::can::c_engineReqId etc.) live with the CAN
+    // abstraction; c_defaultTimeoutMs lives at root subiediag::.
 
     // Per-command upper bounds. Used to size internal scratch buffers.
     constexpr size_t c_maxAddrsPerRead   = 84;   // ReadAddresses: 2 + 3*N <= ~256
@@ -86,7 +85,7 @@ namespace subiediag
     //   romId:    ECU ROM ID, unique per firmware revision
     //   capFlags: capability table. A parameter at (capByte, capBit) is
     //             supported iff capFlags[capByte - 1] & (1 << (capBit - 1)) != 0.
-    struct tSsm2InitResponse
+    struct tInitResponse
     {
         uint8_t ssmId[c_ssmIdLen];
         uint8_t romId[c_romIdLen];
@@ -105,8 +104,8 @@ namespace subiediag
             // transport between multiple clients addressing the same ECU
             // (e.g. Ssm2Client + Obd2Client on 0x7E0/0x7E8) is the intended
             // pattern.
-            IsoTpTransport *transport        = nullptr;
-            uint32_t        defaultTimeoutMs = c_defaultTimeoutMs;
+            isotp::IsoTpTransport *transport        = nullptr;
+            uint32_t               defaultTimeoutMs = c_defaultTimeoutMs;
         };
 
         explicit Ssm2Client(const tConfig &cfg) noexcept;
@@ -122,7 +121,7 @@ namespace subiediag
         // are the address; the high byte is ignored.
 
         // eSsm2Cmd::Init - ECU init. Populates *out with ssmId, romId, capFlags.
-        [[nodiscard]] eStatus Init(tSsm2InitResponse *out, uint32_t timeoutMs = 0);
+        [[nodiscard]] eStatus Init(tInitResponse *out, uint32_t timeoutMs = 0);
 
         // Convenience: opens the underlying bus (via the transport) then
         // performs Init() in one call. Equivalent to:
@@ -130,7 +129,7 @@ namespace subiediag
         //   client.Init(out, timeoutMs);
         // For complex lifetimes (e.g. several clients sharing one transport
         // or one bus) keep the Open() and Init() calls separate.
-        [[nodiscard]] eStatus Connect(tSsm2InitResponse *out, uint32_t timeoutMs = 0);
+        [[nodiscard]] eStatus Connect(tInitResponse *out, uint32_t timeoutMs = 0);
 
         // eSsm2Cmd::ReadAddresses - single-shot read of `addrCount` addresses.
         // Writes `addrCount` bytes (one per address, in order) into `out`.
@@ -187,7 +186,7 @@ namespace subiediag
 
         bool IsInitialized() const noexcept { return m_initialized; }
 
-        const tSsm2InitResponse &InitResponse() const noexcept { return m_init; }
+        const tInitResponse &InitResponse() const noexcept { return m_init; }
 
         // Pointer to the 96-byte cap-flag array. Valid only after Init().
         const uint8_t *CapFlags() const noexcept { return m_init.capFlags; }
@@ -207,7 +206,7 @@ namespace subiediag
         bool HasTransport() const noexcept { return m_cfg.transport != nullptr; }
 
         tConfig           m_cfg;
-        tSsm2InitResponse m_init{};
+        tInitResponse m_init{};
         bool              m_initialized = false;
 
         bool   m_continuous             = false;
@@ -221,4 +220,4 @@ namespace subiediag
         size_t                  m_ringTail             = 0;
     };
 
-}  // namespace subiediag
+}  // namespace subiediag::ssm2

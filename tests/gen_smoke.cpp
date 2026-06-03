@@ -16,9 +16,9 @@
 namespace
 {
 
-    const char *StorageName(subiediag::eStorageType s) noexcept
+    const char *StorageName(subiediag::ssm2::eStorageType s) noexcept
     {
-        using S = subiediag::eStorageType;
+        using S = subiediag::ssm2::eStorageType;
         switch (s)
         {
         case S::Uint8:
@@ -46,10 +46,12 @@ namespace
 int main()
 {
     using namespace subiediag;
+    using namespace subiediag::can;
+    using namespace subiediag::ssm2;
 
-    static_assert(c_ssmBaseTable.size() == 156, "ssmbase parameter count changed");
-    static_assert(c_ssmBaseTable[0].cap.Gated(), "first entry must be flag-gated");
-    static_assert(c_ssmBaseTable[0].offset == 0x000E, "first entry should be Engine Speed");
+    static_assert(c_baseTable.size() == 156, "ssmbase parameter count changed");
+    static_assert(c_baseTable[0].cap.Gated(), "first entry must be flag-gated");
+    static_assert(c_baseTable[0].offset == 0x000E, "first entry should be Engine Speed");
 
     // Compile-time touch of core types -- verifies the headers parse and the
     // include directory is wired correctly. No constructors invoked; nothing
@@ -59,7 +61,7 @@ int main()
     static_assert(DescribeStatus(eStatus::Ok) == "ok");
     static_assert(DescribeStatus(eStatus::Timeout) == "timeout");
     static_assert(sizeof(tCanFrame) > 0);
-    static_assert(sizeof(tSsm2InitResponse) > 0);
+    static_assert(sizeof(tInitResponse) > 0);
     static_assert(sizeof(Ssm2Client::tConfig) > 0);
 
     // Protocol constants should match the SSM2 / ISO 15765-4 spec values.
@@ -79,10 +81,10 @@ int main()
     static_assert(static_cast<uint8_t>(eSsm2Rsp::Init) == 0xEA);  // observed init response code
 
     std::printf("subiediag generated-table smoke test\n");
-    std::printf("  entries:   %zu\n", c_ssmBaseTable.size());
+    std::printf("  entries:   %zu\n", c_baseTable.size());
 
     int gated = 0;
-    for (const auto &p : c_ssmBaseTable)
+    for (const auto &p : c_baseTable)
     {
         if (p.cap.Gated())
         {
@@ -92,9 +94,9 @@ int main()
     std::printf("  gated:     %d\n", gated);
 
     std::printf("\n  first 5 entries:\n");
-    for (size_t i = 0; i < 5 && i < c_ssmBaseTable.size(); ++i)
+    for (size_t i = 0; i < 5 && i < c_baseTable.size(); ++i)
     {
-        const auto &p = c_ssmBaseTable[i];
+        const auto &p = c_baseTable[i];
         std::printf("    %-30.*s  0x%04X  cap[%u.%u]  %-3s  %.*s\n",
                     static_cast<int>(p.name.size()),
                     p.name.data(),

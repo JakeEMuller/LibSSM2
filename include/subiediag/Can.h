@@ -18,12 +18,20 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace subiediag
+namespace subiediag::can
 {
 
     // Maximum payload size of a classic CAN 2.0 frame. CAN-FD (up to 64) is not
     // modelled; SSM2-over-CAN runs at standard 500 kbps with 8-byte payloads.
     constexpr size_t c_canMaxDataLen = 8;
+
+    // ISO 15765-4 standard 11-bit CAN IDs for physical (point-to-point)
+    // diagnostics. Same ID space is used by SSM2 and OBD-II clients since
+    // both ride on the same CAN frame conventions.
+    constexpr uint32_t c_engineReqId        = 0x7E0;
+    constexpr uint32_t c_engineRespId       = 0x7E8;
+    constexpr uint32_t c_transmissionReqId  = 0x7E1;
+    constexpr uint32_t c_transmissionRespId = 0x7E9;
 
     // Classic CAN 2.0 frame.
     struct tCanFrame
@@ -79,4 +87,4 @@ namespace subiediag
         ICanBus &operator=(ICanBus &&)      = delete;
     };
 
-}  // namespace subiediag
+}  // namespace subiediag::can

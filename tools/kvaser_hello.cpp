@@ -19,8 +19,14 @@
 
 int main(int argc, char **argv)
 {
-    using subiediag::backends::KvaserCanBus;
-    using subiediag::backends::tChannelInfo;
+    using subiediag::can::c_engineReqId;
+    using subiediag::can::c_engineRespId;
+    using subiediag::can::KvaserCanBus;
+    using subiediag::can::tChannelInfo;
+    using subiediag::isotp::IsoTpTransport;
+    using subiediag::ssm2::c_capFlagsLen;
+    using subiediag::ssm2::Ssm2Client;
+    using subiediag::ssm2::tInitResponse;
 
     int channel = 0;
     if (argc >= 2)
@@ -48,14 +54,14 @@ int main(int argc, char **argv)
     busCfg.channel = channel;
     KvaserCanBus bus(busCfg);
 
-    subiediag::IsoTpTransport transport(&bus, subiediag::c_engineReqId, subiediag::c_engineRespId);
+    IsoTpTransport transport(&bus, c_engineReqId, c_engineRespId);
 
-    subiediag::Ssm2Client::tConfig cfg;
+    Ssm2Client::tConfig cfg;
     cfg.transport = &transport;
-    subiediag::Ssm2Client client(cfg);
+    Ssm2Client client(cfg);
 
-    subiediag::tSsm2InitResponse init{};
-    const subiediag::eStatus     s = client.Connect(&init);
+    tInitResponse            init{};
+    const subiediag::eStatus s = client.Connect(&init);
     if (!subiediag::IsOk(s))
     {
         const auto desc = subiediag::DescribeStatus(s);
@@ -67,7 +73,7 @@ int main(int argc, char **argv)
     std::printf("ROM ID: %02X %02X %02X %02X %02X\n", init.romId[0], init.romId[1], init.romId[2], init.romId[3], init.romId[4]);
 
     int supported = 0;
-    for (size_t b = 0; b < subiediag::c_capFlagsLen; ++b)
+    for (size_t b = 0; b < c_capFlagsLen; ++b)
     {
         uint8_t v = init.capFlags[b];
         while (v != 0)

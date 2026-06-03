@@ -19,10 +19,10 @@
 #include <array>
 #include <string_view>
 
-namespace subiediag
+namespace subiediag::obd2
 {
 
-    struct tObd2PidInfo
+    struct tPidInfo
     {
         uint8_t          pid;      // OBD-II PID byte
         uint8_t          bytes;    // response data byte count (after [0x41 PID] header)
@@ -34,7 +34,7 @@ namespace subiediag
     };
 
     // Common Mode 01 PIDs with linear decode formulas. Sorted by PID.
-    inline constexpr std::array<tObd2PidInfo, 23> c_obd2PidTable{{
+    inline constexpr std::array<tPidInfo, 23> c_pidTable{{
         {0x04, 1, 100.0f / 255.0f, 0.0f, "Engine Load", "%", "A * 100 / 255"},
         {0x05, 1, 1.0f, -40.0f, "Coolant Temp", "C", "A - 40"},
         {0x06, 1, 100.0f / 128.0f, -100.0f, "STFT Bank 1", "%", "(A - 128) * 100 / 128"},
@@ -63,11 +63,11 @@ namespace subiediag
     // Lookup a PID in the table. Returns null if not present (does NOT mean
     // the PID is unsupported -- many OBD-II PIDs don't have linear decoders
     // and so don't appear here).
-    [[nodiscard]] const tObd2PidInfo *FindObd2Pid(uint8_t pid) noexcept;
+    [[nodiscard]] const tPidInfo *FindPid(uint8_t pid) noexcept;
 
-    // Decode `raw[0..rawLen)` according to the PID's entry in c_obd2PidTable.
+    // Decode `raw[0..rawLen)` according to the PID's entry in c_pidTable.
     // Returns true and writes *outValue on success. Returns false if the PID
     // isn't in the table or rawLen is too small for the PID's byte count.
-    [[nodiscard]] bool Obd2DecodePid(uint8_t pid, const uint8_t *raw, size_t rawLen, double *outValue) noexcept;
+    [[nodiscard]] bool DecodePid(uint8_t pid, const uint8_t *raw, size_t rawLen, double *outValue) noexcept;
 
-}  // namespace subiediag
+}  // namespace subiediag::obd2

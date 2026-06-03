@@ -11,12 +11,12 @@
 namespace
 {
 
-    using subiediag::c_canMaxDataLen;
+    using subiediag::can::c_canMaxDataLen;
+    using subiediag::can::tCanFrame;
     using subiediag::DescribeStatus;
     using subiediag::eStatus;
     using subiediag::IsOk;
-    using subiediag::IsoTpTransport;
-    using subiediag::tCanFrame;
+    using subiediag::isotp::IsoTpTransport;
     using subiediag_test::MockCanBus;
 
     // --- tiny test harness ------------------------------------------------------

@@ -13,8 +13,8 @@ Input CSV format:
 
 Output: a self-contained C++17 header at the path given by --out. The
 header declares a `constexpr std::array<tDtcDbEntry, N>` named
-`c_obd2DtcDb`, sorted by (category, code) ascending, with N inferred
-from the input.
+`c_dtcDb` in namespace `subiediag::obd2`, sorted by (category, code)
+ascending, with N inferred from the input.
 
 CLI: gen_obd2_dtcs.py path/to/dtcs.csv --out path/to/Obd2DtcDb.h
 """
@@ -111,7 +111,7 @@ def _emit(rows: list[tuple[str, int, str]], src_path: Path, out_path: Path) -> N
     w("#include <array>")
     w("#include <string_view>")
     w("")
-    w("namespace subiediag")
+    w("namespace subiediag::obd2")
     w("{")
     w("")
     w("    struct tDtcDbEntry")
@@ -122,7 +122,7 @@ def _emit(rows: list[tuple[str, int, str]], src_path: Path, out_path: Path) -> N
     w("    };")
     w("")
     w(f"    // Sorted by (category, code). Lookup is a linear scan -- {len(rows)} entries.")
-    w(f"    inline constexpr std::array<tDtcDbEntry, {len(rows)}> c_obd2DtcDb{{{{")
+    w(f"    inline constexpr std::array<tDtcDbEntry, {len(rows)}> c_dtcDb{{{{")
 
     for cat, code, desc in rows:
         cat_expr = _CATEGORY_MAP[cat]
@@ -132,7 +132,7 @@ def _emit(rows: list[tuple[str, int, str]], src_path: Path, out_path: Path) -> N
 
     w("    }};")
     w("")
-    w("}  // namespace subiediag")
+    w("}  // namespace subiediag::obd2")
     w("")
 
     out_path.write_text("\n".join(lines), encoding="utf-8")

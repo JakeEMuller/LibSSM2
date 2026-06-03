@@ -12,8 +12,14 @@
 #include <string.h>
 #include <thread>
 
-namespace subiediag
+namespace subiediag::isotp
 {
+
+    // Bring in the CAN-layer types and the universal status enum so the
+    // rest of this TU reads naturally.
+    using can::c_canMaxDataLen;
+    using can::ICanBus;
+    using can::tCanFrame;
 
     namespace
     {
@@ -511,4 +517,4 @@ namespace subiediag
         return ReceiveResponse(out, outCapacity, outLen, r2);
     }
 
-}  // namespace subiediag
+}  // namespace subiediag::isotp

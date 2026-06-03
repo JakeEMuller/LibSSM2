@@ -315,7 +315,7 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
     w("#include <stdint.h>")
     w("#include <string_view>")
     w("")
-    w("namespace subiediag {")
+    w("namespace subiediag::ssm2 {")
     w("")
     w("enum class eStorageType : uint8_t {")
     w("    Uint8, Uint16, Uint32,")
@@ -331,7 +331,7 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
     w("    constexpr bool Gated() const noexcept { return byte != 0 && bit != 0; }")
     w("};")
     w("")
-    w("struct tSsmParameter {")
+    w("struct tParameter {")
     w("    std::string_view name;       // human-readable identifier")
     w("    uint32_t         offset;     // SSM2 read address (0 if only alts apply)")
     w("    tCapFlag         cap;        // capability-flag gate from 0xAA init")
@@ -343,7 +343,7 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
     w("    std::string_view desc;       // long description ('|' converted to newlines)")
     w("};")
     w("")
-    w(f"inline constexpr std::array<tSsmParameter, {len(params)}> c_ssmBaseTable {{{{")
+    w(f"inline constexpr std::array<tParameter, {len(params)}> c_baseTable {{{{")
 
     for p in params:
         name    = _cpp_string(p.name)
@@ -362,7 +362,7 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
 
     w("}};")
     w("")
-    w("}  // namespace subiediag")
+    w("}  // namespace subiediag::ssm2")
     w("")
 
     out_path.write_text("\n".join(lines), encoding="utf-8")

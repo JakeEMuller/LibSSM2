@@ -26,13 +26,13 @@
 namespace subiediag_test
 {
 
-    class MockCanBus : public subiediag::ICanBus
+    class MockCanBus : public subiediag::can::ICanBus
     {
     public:
 
         // Public test surface: inspect Tx, populate Rx.
-        std::vector<subiediag::tCanFrame> tx;  // frames captured from Send()
-        std::vector<subiediag::tCanFrame> rx;  // frames to feed back to Receive()
+        std::vector<subiediag::can::tCanFrame> tx;  // frames captured from Send()
+        std::vector<subiediag::can::tCanFrame> rx;  // frames to feed back to Receive()
 
         // Force the next Receive() to return this status instead of pulling from rx.
         // After one use, behavior reverts to the queue. (Default Ok.)
@@ -41,13 +41,13 @@ namespace subiediag_test
 
         void QueueRx(uint32_t id, uint8_t dlc, std::initializer_list<uint8_t> data)
         {
-            subiediag::tCanFrame f{};
+            subiediag::can::tCanFrame f{};
             f.id     = id;
             f.dlc    = dlc;
             size_t i = 0;
             for (uint8_t b : data)
             {
-                if (i >= subiediag::c_canMaxDataLen)
+                if (i >= subiediag::can::c_canMaxDataLen)
                 {
                     break;
                 }
@@ -72,7 +72,7 @@ namespace subiediag_test
 
         subiediag::eStatus SetRxFilter(const uint32_t * /*ids*/, size_t /*count*/) override { return subiediag::eStatus::Ok; }
 
-        subiediag::eStatus Send(const subiediag::tCanFrame &frame, uint32_t /*timeoutMs*/) override
+        subiediag::eStatus Send(const subiediag::can::tCanFrame &frame, uint32_t /*timeoutMs*/) override
         {
             if (forceSendStatus != subiediag::eStatus::Ok)
             {
@@ -82,7 +82,7 @@ namespace subiediag_test
             return subiediag::eStatus::Ok;
         }
 
-        subiediag::eStatus Receive(subiediag::tCanFrame *out, uint32_t /*timeoutMs*/) override
+        subiediag::eStatus Receive(subiediag::can::tCanFrame *out, uint32_t /*timeoutMs*/) override
         {
             if (forceReceiveStatus != subiediag::eStatus::Ok)
             {

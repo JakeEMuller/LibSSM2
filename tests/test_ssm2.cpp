@@ -18,20 +18,20 @@
 namespace
 {
 
-    using subiediag::c_canMaxDataLen;
-    using subiediag::c_capFlagsLen;
-    using subiediag::c_engineReqId;
-    using subiediag::c_engineRespId;
-    using subiediag::c_romIdLen;
-    using subiediag::c_ssmIdLen;
+    using subiediag::can::c_canMaxDataLen;
+    using subiediag::can::c_engineReqId;
+    using subiediag::can::c_engineRespId;
     using subiediag::DescribeStatus;
-    using subiediag::eSsm2Cmd;
-    using subiediag::eSsm2Rsp;
     using subiediag::eStatus;
     using subiediag::IsOk;
-    using subiediag::IsoTpTransport;
-    using subiediag::Ssm2Client;
-    using subiediag::tSsm2InitResponse;
+    using subiediag::isotp::IsoTpTransport;
+    using subiediag::ssm2::c_capFlagsLen;
+    using subiediag::ssm2::c_romIdLen;
+    using subiediag::ssm2::c_ssmIdLen;
+    using subiediag::ssm2::eSsm2Cmd;
+    using subiediag::ssm2::eSsm2Rsp;
+    using subiediag::ssm2::Ssm2Client;
+    using subiediag::ssm2::tInitResponse;
     using subiediag_test::MockCanBus;
 
     // --- tiny test harness ----------------------------------------------------
@@ -103,7 +103,7 @@ namespace
     // Queue an ISO-TP single-frame response carrying `payload`.
     void QueueIsoTpSingleFrame(MockCanBus &bus, uint32_t id, const std::vector<uint8_t> &payload)
     {
-        subiediag::tCanFrame f{};
+        subiediag::can::tCanFrame f{};
         f.id      = id;
         f.dlc     = c_canMaxDataLen;
         f.data[0] = static_cast<uint8_t>(payload.size());
@@ -122,7 +122,7 @@ namespace
     {
         const uint16_t total = static_cast<uint16_t>(payload.size());
 
-        subiediag::tCanFrame ff{};
+        subiediag::can::tCanFrame ff{};
         ff.id      = id;
         ff.dlc     = c_canMaxDataLen;
         ff.data[0] = static_cast<uint8_t>(0x10 | ((total >> 8) & 0x0F));
@@ -137,7 +137,7 @@ namespace
         uint8_t seq  = 1;
         while (sent < payload.size())
         {
-            subiediag::tCanFrame cf{};
+            subiediag::can::tCanFrame cf{};
             cf.id             = id;
             cf.dlc            = c_canMaxDataLen;
             cf.data[0]        = 0x20 | (seq & 0x0F);
@@ -184,7 +184,7 @@ namespace
 
         QueueIsoTpMultiFrame(bus, c_engineRespId, payload);
 
-        tSsm2InitResponse init{};
+        tInitResponse init{};
         CHECK_OK(client.Init(&init));
 
         // Request bytes on the wire: a single-frame [0x01, 0xAA, pad..]
@@ -228,7 +228,7 @@ namespace
         payload[0] = 0x00;  // wrong (should be 0xEA)
         QueueIsoTpMultiFrame(bus, c_engineRespId, payload);
 
-        tSsm2InitResponse init{};
+        tInitResponse init{};
         CHECK_STATUS(client.Init(&init), eStatus::ProtocolError);
         CHECK(!client.IsInitialized());
     }
@@ -478,7 +478,7 @@ namespace
         }
         QueueIsoTpMultiFrame(bus, c_engineRespId, payload);
 
-        tSsm2InitResponse init{};
+        tInitResponse init{};
         CHECK_OK(client.Connect(&init));
         CHECK(bus.IsOpen());
         CHECK(client.IsInitialized());
@@ -491,7 +491,7 @@ namespace
         Ssm2Client::tConfig cfg;
         cfg.transport = nullptr;
         Ssm2Client        client(cfg);
-        tSsm2InitResponse init{};
+        tInitResponse init{};
         CHECK_STATUS(client.Connect(&init), eStatus::BackendUnavailable);
     }
 
