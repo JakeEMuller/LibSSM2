@@ -128,6 +128,18 @@ namespace subiediag::can
         }
         EnsureCanlibInit();
 
+        // canInitializeLibrary() scans the hardware once per process and
+        // subsequent calls are no-ops. canEnumHardwareEx() is the explicit
+        // "rescan now" trigger that lets canOpenChannel() below see a
+        // Kvaser plugged in after the program started -- without it, a
+        // hot-plug retry loop in higher layers will spin forever.
+        int             numChannels = 0;
+        const canStatus enumStatus  = canEnumHardwareEx(&numChannels);
+        if (enumStatus != canOK)
+        {
+            return FromCanlibStatus(enumStatus);
+        }
+
         const int       flags = m_cfg.exclusive ? canOPEN_EXCLUSIVE : 0;
         const canHandle h     = canOpenChannel(m_cfg.channel, flags);
         if (h < 0)
@@ -241,8 +253,12 @@ namespace subiediag::can
     {
         EnsureCanlibInit();
 
+        // canEnumHardwareEx() forces a hardware rescan AND returns the
+        // current channel count. Preferred over canGetNumberOfChannels()
+        // so the result reflects what is plugged in right now, not what
+        // was attached at process start.
         int count = 0;
-        if (canGetNumberOfChannels(&count) != canOK || count < 0)
+        if (canEnumHardwareEx(&count) != canOK || count < 0)
         {
             return 0;
         }
