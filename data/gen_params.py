@@ -249,6 +249,46 @@ _STORAGE_MAP = {
 }
 
 
+def _parse_linear_expr(expr: str | None) -> tuple[float, float, bool]:
+    """Reduce an SSM2 conversion expression to (scale, offset, linear).
+
+    Every expression in log_defs.xml that depends only on [value] is linear
+    in [value]: the conversion fits `engineering = scale * raw + offset`.
+    We evaluate the expression at three sample points (v=0, 1, 2), derive
+    `offset = f(0)` and `scale = f(1) - f(0)`, then verify linearity at
+    v=2 within a small float epsilon. Returns (scale, offset, True) if
+    that holds.
+
+    Expressions that can't be reduced -- chiefly `GetLogParam("...")`
+    references to other PIDs, which raise NameError under our sandbox --
+    return (0.0, 0.0, False). The consumer (PollScheduler) should skip
+    those PIDs at registry-build time.
+
+    Security note: the only inputs are expression strings hand-curated in
+    log_defs.xml (a committed source artifact), so eval() is acceptable
+    here. The sandbox blanks __builtins__ as defence-in-depth; any
+    attempt to call an unavailable function lands in the except branch
+    and the PID just gets marked non-linear.
+    """
+    if not expr:
+        return (0.0, 0.0, False)
+    py = expr.replace("[value]", "v")
+    sandbox: dict[str, object] = {"__builtins__": {}}
+    def _eval(vv: float) -> float:
+        return float(eval(py, sandbox, {"v": float(vv)}))
+    try:
+        f0 = _eval(0.0)
+        f1 = _eval(1.0)
+        f2 = _eval(2.0)
+    except Exception:
+        return (0.0, 0.0, False)
+    offset = f0
+    scale  = f1 - f0
+    if abs(f2 - (2.0 * scale + offset)) > 1e-9 * max(1.0, abs(f2)):
+        return (0.0, 0.0, False)
+    return (scale, offset, True)
+
+
 def _cpp_string(s: str) -> str:
     """Escape a Python string as a C++ string literal.
 
@@ -331,6 +371,18 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
     w("    constexpr bool Gated() const noexcept { return byte != 0 && bit != 0; }")
     w("};")
     w("")
+    w("struct tConvert {")
+    w("    double scale;   // multiplier applied to the raw stored value")
+    w("    double offset;  // added after the scale")
+    w("    bool   linear;  // true when (scale, offset) fully describes the")
+    w("                    // conversion, i.e. engineering = scale*raw + offset.")
+    w("                    // false for expressions that can't be reduced to a")
+    w("                    // linear function of [value] alone (e.g. parameters")
+    w("                    // whose expr calls GetLogParam(\"...\") into another")
+    w("                    // PID's current value). Consumers should skip those")
+    w("                    // PIDs or special-case them.")
+    w("};")
+    w("")
     w("struct tParameter {")
     w("    std::string_view name;       // human-readable identifier")
     w("    uint32_t         offset;     // SSM2 read address (0 if only alts apply)")
@@ -341,10 +393,12 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
     w("    std::string_view expr;       // conversion expression, uses [value]")
     w("    std::string_view factor;     // optional ecu_tools convert_factor key")
     w("    std::string_view desc;       // long description ('|' converted to newlines)")
+    w("    tConvert         convert;    // pre-parsed `expr`; see tConvert")
     w("};")
     w("")
     w(f"inline constexpr std::array<tParameter, {len(params)}> c_baseTable {{{{")
 
+    non_linear: list[str] = []
     for p in params:
         name    = _cpp_string(p.name)
         offset  = f"0x{p.offset:05X}" if p.offset is not None else "0x00000"
@@ -356,9 +410,17 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
         factor  = _cpp_string(p.factor_type or "")
         desc    = _cpp_string(p.desc or "")
 
-        # Compact short fields on one line, descriptions on a continuation line.
+        sc, ofs, lin = _parse_linear_expr(p.expr)
+        if not lin:
+            non_linear.append(p.name)
+        convert = f"{{ {sc!r}, {ofs!r}, {'true' if lin else 'false'} }}"
+
+        # Compact short fields on one line; description and the pre-parsed
+        # conversion each on their own continuation line so the diff is
+        # readable when expressions change.
         w(f"    {{ {name}, {offset}, {cap}, {storage}, {decim}, {metric}, {expr}, {factor},")
-        w(f"      {desc} }},")
+        w(f"      {desc},")
+        w(f"      {convert} }},")
 
     w("}};")
     w("")
@@ -366,6 +428,10 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
     w("")
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
+
+    if non_linear:
+        print(f"note: {len(non_linear)} parameter(s) have a non-linear expr, "
+              f"emitted with linear=false: {', '.join(non_linear)}")
     return len(params)
 
 
