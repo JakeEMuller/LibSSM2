@@ -25,9 +25,16 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string_view>
 
 namespace subiediag::ssm2
 {
+
+    // Forward decl: the full definition lives in the generated SsmBaseTable.h.
+    // Callers wanting to use parameter lookups or ReadParameters() must
+    // include "subiediag/SsmBaseTable.h" as well.
+    struct tParameter;
+
 
     // ---------------------------------------------------------------------------
     // SSM2 protocol constants.
@@ -135,6 +142,31 @@ namespace subiediag::ssm2
         // Writes `addrCount` bytes (one per address, in order) into `out`.
         [[nodiscard]] eStatus ReadAddresses(const uint32_t *addrs, size_t addrCount, uint8_t *out, uint32_t timeoutMs = 0);
 
+        // Batch parameter read. Builds one ReadAddresses gather request from
+        // every byte each parameter occupies (per its storage type), runs
+        // one A8 round trip, then reassembles each multi-byte value and
+        // writes a double into outValues[i]:
+        //
+        //   if params[i]->convert.linear:
+        //       outValues[i] = raw * convert.scale + convert.offset
+        //   else:
+        //       outValues[i] = raw    // raw int as double; caller must
+        //                             //   interpret param->expr manually
+        //
+        // `raw` is the parameter's bytes reassembled big-endian, with sign
+        // extension for signed storage and IEEE-754 reinterpretation for
+        // Float storage.
+        //
+        // Returns Overrun if the total byte count across all parameters
+        // exceeds c_maxAddrsPerRead (84) -- split into multiple calls in
+        // that case. Returns InvalidFrame on a null param pointer, a param
+        // with storage == Unknown, or a param with offset == 0 (alts-only
+        // parameter that has no direct address).
+        [[nodiscard]] eStatus ReadParameters(const tParameter *const *params,
+                                             size_t                   paramCount,
+                                             double                  *outValues,
+                                             uint32_t                 timeoutMs = 0);
+
         // eSsm2Cmd::ReadBlock - sequential block read of `outLen` bytes starting
         // at startAddr.
         [[nodiscard]] eStatus ReadBlock(uint32_t startAddr, uint8_t *out, size_t outLen, uint32_t timeoutMs = 0);
@@ -219,5 +251,18 @@ namespace subiediag::ssm2
         size_t                  m_ringHead             = 0;
         size_t                  m_ringTail             = 0;
     };
+
+    // -------- Parameter lookup ------------------------------------------------
+    //
+    // Free helpers that scan c_baseTable (defined in the generated
+    // SsmBaseTable.h, which the caller must include). Linear scan -- 156
+    // entries, no benefit from a more elaborate index.
+
+    // Match by exact `name` (case-sensitive). Returns null if not found.
+    [[nodiscard]] const tParameter *FindParameterByName(std::string_view name) noexcept;
+
+    // Match by 24-bit SSM2 address. Returns the first parameter whose
+    // `offset` equals `addr`. Returns null if no parameter starts there.
+    [[nodiscard]] const tParameter *FindParameterByAddress(uint32_t addr) noexcept;
 
 }  // namespace subiediag::ssm2

@@ -8,6 +8,7 @@
 #include "subiediag/Can.h"
 #include "subiediag/Common.h"
 #include "subiediag/Ssm2.h"
+#include "subiediag/SsmBaseTable.h"
 #include "MockCanBus.h"
 
 #include <cstdio>
@@ -112,6 +113,20 @@ namespace
             f.data[1 + i] = payload[i];
         }
         bus.rx.push_back(f);
+    }
+
+    // Queue an ISO-TP flow-control frame (CTS, BS=0, STmin=0). The transport
+    // needs one of these between sending its FF and sending CFs whenever the
+    // request payload exceeds 7 bytes.
+    void QueueIsoTpFlowControl(MockCanBus &bus, uint32_t id)
+    {
+        subiediag::can::tCanFrame fc{};
+        fc.id      = id;
+        fc.dlc     = c_canMaxDataLen;
+        fc.data[0] = 0x30;  // FC.CTS
+        fc.data[1] = 0x00;  // BS = 0 -> stream all
+        fc.data[2] = 0x00;  // STmin = 0
+        bus.rx.push_back(fc);
     }
 
     // Queue an ISO-TP multi-frame response: one FF + N CFs covering `payload`.
@@ -496,6 +511,199 @@ namespace
     }
 
     // Continuous-mode methods are placeholders for now.
+    // -------- FindParameterByName / ByAddress -------------------------------
+
+    void test_find_parameter_by_name_hit()
+    {
+        const auto *p = subiediag::ssm2::FindParameterByName("Engine Speed");
+        CHECK(p != nullptr);
+        if (p) {
+            CHECK(p->offset == 0x000E);
+            CHECK(p->storage == subiediag::ssm2::eStorageType::Uint16);
+            // [value]/4 -> scale 0.25, offset 0
+            CHECK(p->convert.linear);
+            CHECK(p->convert.scale == 0.25);
+            CHECK(p->convert.offset == 0.0);
+        }
+    }
+
+    void test_find_parameter_by_name_miss()
+    {
+        CHECK(subiediag::ssm2::FindParameterByName("not a real param") == nullptr);
+    }
+
+    void test_find_parameter_by_address_hit()
+    {
+        const auto *p = subiediag::ssm2::FindParameterByAddress(0x000E);
+        CHECK(p != nullptr);
+        if (p) {
+            CHECK(p->name == "Engine Speed");
+        }
+    }
+
+    void test_find_parameter_by_address_miss()
+    {
+        // Pick an address well outside anything the base table covers.
+        CHECK(subiediag::ssm2::FindParameterByAddress(0xFFFFFE) == nullptr);
+    }
+
+    // -------- ReadParameters: end-to-end batched read -----------------------
+
+    // One Uint16 parameter with linear decode. Wire request must list both
+    // bytes; response is reassembled big-endian and scaled.
+    void test_read_parameters_uint16_linear()
+    {
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
+
+        // Synthesize a Uint16 param at 0x000E with expr [value]/4 -> RPM.
+        // raw = 0x1F40 = 8000 -> rpm = 2000.0
+        const subiediag::ssm2::tParameter rpm = {
+            "Engine Speed", 0x000E, {0, 0},
+            subiediag::ssm2::eStorageType::Uint16,
+            0, "RPM", "[value]/4", "", "",
+            {0.25, 0.0, true}
+        };
+        const subiediag::ssm2::tParameter *picks[] = {&rpm};
+
+        // Request payload is 8 bytes (2 + 3*2), so it multi-frames. Queue an
+        // FC reply for the request side, then the (single-frame) response.
+        QueueIsoTpFlowControl(bus, c_engineRespId);
+        QueueIsoTpSingleFrame(bus, c_engineRespId, {
+            static_cast<uint8_t>(eSsm2Rsp::ReadAddresses), 0x1F, 0x40
+        });
+
+        double values[1] = {};
+        CHECK_OK(client.ReadParameters(picks, 1, values));
+        CHECK(values[0] == 2000.0);
+
+        // Request bytes on the wire: FF (0x10 0x08) + [A8 00 ...payload]
+        // The first frame carries 6 payload bytes, the CF carries the rest.
+        CHECK(bus.tx.size() == 2);                              // FF + 1 CF
+        CHECK((bus.tx[0].data[0] & 0xF0) == 0x10);              // FF type
+        CHECK(bus.tx[0].data[1] == 0x08);                       // FF_DL low = 8
+        CHECK(bus.tx[0].data[2] == static_cast<uint8_t>(eSsm2Cmd::ReadAddresses));
+        CHECK(bus.tx[0].data[3] == 0x00);                       // pad
+        CHECK(bus.tx[0].data[4] == 0x00);                       // addr1 hi
+        CHECK(bus.tx[0].data[5] == 0x00);
+        CHECK(bus.tx[0].data[6] == 0x0E);                       // addr1 lo
+        CHECK(bus.tx[0].data[7] == 0x00);                       // addr2 hi
+        CHECK((bus.tx[1].data[0] & 0xF0) == 0x20);              // CF type
+        CHECK(bus.tx[1].data[1] == 0x00);                       // addr2 mid
+        CHECK(bus.tx[1].data[2] == 0x0F);                       // addr2 lo
+    }
+
+    // Signed Int8 with no decode -- exercises sign extension and raw-as-double
+    // fallback when convert.linear == false.
+    void test_read_parameters_int8_signed_raw()
+    {
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
+
+        // Int8 parameter, non-linear expr -> caller gets the raw sign-extended int.
+        const subiediag::ssm2::tParameter sint = {
+            "Synthetic Signed", 0x000123, {0, 0},
+            subiediag::ssm2::eStorageType::Int8,
+            0, "", "complicated_thing([value])", "", "",
+            {0.0, 0.0, false}
+        };
+        const subiediag::ssm2::tParameter *picks[] = {&sint};
+
+        // 0xFE = -2 when sign-extended from int8.
+        QueueIsoTpSingleFrame(bus, c_engineRespId, {
+            static_cast<uint8_t>(eSsm2Rsp::ReadAddresses), 0xFE
+        });
+
+        double values[1] = {};
+        CHECK_OK(client.ReadParameters(picks, 1, values));
+        CHECK(values[0] == -2.0);
+    }
+
+    // Two parameters batched into a single A8: a Uint8 and a Uint16. Verifies
+    // the gather order is preserved and each value lands in the right slot.
+    void test_read_parameters_two_params_batched()
+    {
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
+
+        const subiediag::ssm2::tParameter coolant = {
+            "Coolant Temp", 0x000008, {0, 0},
+            subiediag::ssm2::eStorageType::Uint8,
+            0, "C", "[value]-40", "", "",
+            {1.0, -40.0, true}
+        };
+        const subiediag::ssm2::tParameter rpm = {
+            "Engine Speed", 0x00000E, {0, 0},
+            subiediag::ssm2::eStorageType::Uint16,
+            0, "RPM", "[value]/4", "", "",
+            {0.25, 0.0, true}
+        };
+        const subiediag::ssm2::tParameter *picks[] = {&coolant, &rpm};
+
+        // Request payload is 11 bytes (2 + 3*3), multi-frames. FC then response.
+        // Response: 1 byte for coolant + 2 bytes for rpm = 3 data + 1 SID = 4 bytes
+        // 0x8A -> 138 -> coolant = 138 - 40 = 98.0
+        // 0x1F40 -> 8000 -> rpm = 2000.0
+        QueueIsoTpFlowControl(bus, c_engineRespId);
+        QueueIsoTpSingleFrame(bus, c_engineRespId, {
+            static_cast<uint8_t>(eSsm2Rsp::ReadAddresses), 0x8A, 0x1F, 0x40
+        });
+
+        double values[2] = {};
+        CHECK_OK(client.ReadParameters(picks, 2, values));
+        CHECK(values[0] == 98.0);
+        CHECK(values[1] == 2000.0);
+    }
+
+    // Invalid inputs: null, zero count, null parameter pointer, alts-only
+    // (offset == 0), Unknown storage.
+    void test_read_parameters_invalid_args()
+    {
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
+
+        const subiediag::ssm2::tParameter good = {
+            "x", 0x100, {0, 0}, subiediag::ssm2::eStorageType::Uint8,
+            0, "", "", "", "", {1.0, 0.0, true}
+        };
+        const subiediag::ssm2::tParameter altsOnly = {
+            "y", 0x000, {0, 0}, subiediag::ssm2::eStorageType::Uint8,
+            0, "", "", "", "", {1.0, 0.0, true}
+        };
+        const subiediag::ssm2::tParameter unknownStorage = {
+            "z", 0x100, {0, 0}, subiediag::ssm2::eStorageType::Unknown,
+            0, "", "", "", "", {1.0, 0.0, true}
+        };
+
+        double values[2] = {};
+        const subiediag::ssm2::tParameter *picks[] = {&good};
+
+        CHECK_STATUS(client.ReadParameters(nullptr, 1, values), eStatus::InvalidFrame);
+        CHECK_STATUS(client.ReadParameters(picks, 1, nullptr), eStatus::InvalidFrame);
+        CHECK_STATUS(client.ReadParameters(picks, 0, values), eStatus::InvalidFrame);
+
+        const subiediag::ssm2::tParameter *withNull[] = {&good, nullptr};
+        CHECK_STATUS(client.ReadParameters(withNull, 2, values), eStatus::InvalidFrame);
+
+        const subiediag::ssm2::tParameter *withAltsOnly[] = {&altsOnly};
+        CHECK_STATUS(client.ReadParameters(withAltsOnly, 1, values), eStatus::InvalidFrame);
+
+        const subiediag::ssm2::tParameter *withUnknown[] = {&unknownStorage};
+        CHECK_STATUS(client.ReadParameters(withUnknown, 1, values), eStatus::InvalidFrame);
+    }
+
     void test_continuous_not_supported()
     {
         MockCanBus          bus;
@@ -535,6 +743,15 @@ int main()
     RUN(test_issupported_pre_init);
     RUN(test_invalid_args);
     RUN(test_continuous_not_supported);
+
+    RUN(test_find_parameter_by_name_hit);
+    RUN(test_find_parameter_by_name_miss);
+    RUN(test_find_parameter_by_address_hit);
+    RUN(test_find_parameter_by_address_miss);
+    RUN(test_read_parameters_uint16_linear);
+    RUN(test_read_parameters_int8_signed_raw);
+    RUN(test_read_parameters_two_params_batched);
+    RUN(test_read_parameters_invalid_args);
 
     std::printf("  %d/%d checks passed\n", g_checks - g_failed, g_checks);
     return g_failed == 0 ? 0 : 1;
