@@ -227,6 +227,17 @@ namespace subiediag::ssm2
         // Returns false before Init() has been called.
         bool IsSupported(uint8_t capByte, uint8_t capBit) const noexcept;
 
+        // Same check, addressed by parameter. Returns false in any of:
+        //   - the client has not been Init()'d yet
+        //   - the parameter is not cap-flag-gated (cap.byte == 0 || cap.bit == 0).
+        //     The base table doesn't know which ROM-specific alt to use for
+        //     these, so we conservatively report "not supported". Caller may
+        //     still attempt ReadParameters() to find out empirically.
+        //   - the ECU's cap-flag bit is clear
+        // Callers wanting to distinguish the three "no" reasons should
+        // inspect param.cap.Gated() and IsInitialized() directly.
+        bool IsSupported(const tParameter &param) const noexcept;
+
         const tConfig &Config() const noexcept { return m_cfg; }
 
     private:

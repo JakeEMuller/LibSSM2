@@ -396,6 +396,71 @@ namespace
         Ssm2Client client(cfg);
         CHECK(!client.IsInitialized());
         CHECK(!client.IsSupported(1, 1));
+
+        // Parameter overload must also reject before init, even for a
+        // gated parameter with valid indices.
+        const subiediag::ssm2::tParameter gated = {
+            "x", 0x100, {1, 1}, subiediag::ssm2::eStorageType::Uint8,
+            0, "", "", "", "", {1.0, 0.0, true}
+        };
+        CHECK(!client.IsSupported(gated));
+    }
+
+    // After init: IsSupported(tParameter&) returns the right answer based
+    // on the cap-flag table loaded from the 0xAA response. Drives the
+    // ECU init then checks several flag positions.
+    void test_issupported_parameter_overload()
+    {
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
+
+        // Synthesize an init response with a known cap-flag byte 1 = 0xF3
+        // = bits 1, 2, 5, 6, 7, 8 set (1-based bit indexing in this codebase).
+        std::vector<uint8_t> payload = {
+            0xEA, 0xA2, 0x10, 0x02, 0x51, 0x12, 0x18, 0x80, 0x07,
+            0xF3,  // cap byte 1
+        };
+        while (payload.size() < 1 + c_ssmIdLen + c_romIdLen + c_capFlagsLen)
+        {
+            payload.push_back(0x00);
+        }
+        QueueIsoTpMultiFrame(bus, c_engineRespId, payload);
+        tInitResponse init{};
+        CHECK_OK(client.Init(&init));
+        CHECK(init.capFlags[0] == 0xF3);
+
+        // 0xF3 = 0b11110011. With 1-based bit indexing where bit 1 is the
+        // LSB, the set bits are 1, 2, 5, 6, 7, 8.
+        const subiediag::ssm2::tParameter setBit1 = {
+            "a", 0x100, {1, 1}, subiediag::ssm2::eStorageType::Uint8,
+            0, "", "", "", "", {1.0, 0.0, true}
+        };
+        const subiediag::ssm2::tParameter clearBit3 = {
+            "b", 0x101, {1, 3}, subiediag::ssm2::eStorageType::Uint8,
+            0, "", "", "", "", {1.0, 0.0, true}
+        };
+        const subiediag::ssm2::tParameter setBit7 = {
+            "c", 0x102, {1, 7}, subiediag::ssm2::eStorageType::Uint8,
+            0, "", "", "", "", {1.0, 0.0, true}
+        };
+        const subiediag::ssm2::tParameter ungated = {
+            "d", 0x103, {0, 0}, subiediag::ssm2::eStorageType::Uint8,
+            0, "", "", "", "", {1.0, 0.0, true}
+        };
+        // Cap byte 2 is 0x00 -- nothing supported there.
+        const subiediag::ssm2::tParameter inEmptyByte = {
+            "e", 0x104, {2, 1}, subiediag::ssm2::eStorageType::Uint8,
+            0, "", "", "", "", {1.0, 0.0, true}
+        };
+
+        CHECK(client.IsSupported(setBit1));      // bit 1 of 0xF3 -> 1
+        CHECK(!client.IsSupported(clearBit3));   // bit 3 of 0xF3 -> 0
+        CHECK(client.IsSupported(setBit7));      // bit 7 of 0xF3 -> 1
+        CHECK(!client.IsSupported(ungated));     // non-gated -> false
+        CHECK(!client.IsSupported(inEmptyByte)); // byte 2 == 0 -> false
     }
 
     // Invalid args. Writes require unlock first so we actually exercise the
@@ -741,6 +806,7 @@ int main()
     RUN(test_connect_opens_and_inits);
     RUN(test_connect_no_transport);
     RUN(test_issupported_pre_init);
+    RUN(test_issupported_parameter_overload);
     RUN(test_invalid_args);
     RUN(test_continuous_not_supported);
 

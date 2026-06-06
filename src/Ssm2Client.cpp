@@ -458,6 +458,19 @@ namespace subiediag::ssm2
         return (m_init.capFlags[capByte - 1] & (1 << (capBit - 1))) != 0;
     }
 
+    bool Ssm2Client::IsSupported(const tParameter &param) const noexcept
+    {
+        // Non-gated parameters have no cap-flag bit; the table doesn't
+        // know their per-ROM availability, so we report "not supported"
+        // conservatively. The integer overload below handles the
+        // not-initialized and out-of-range cases.
+        if (!param.cap.Gated())
+        {
+            return false;
+        }
+        return IsSupported(param.cap.byte, param.cap.bit);
+    }
+
     // -------- ReadParameters (batched A8 + decode) -----------------------------
 
     eStatus Ssm2Client::ReadParameters(const tParameter *const *params, size_t paramCount, double *outValues, uint32_t timeoutMs)
