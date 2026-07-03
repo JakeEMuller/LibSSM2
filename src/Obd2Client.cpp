@@ -13,6 +13,8 @@
 #include "subiediag/Obd2DtcDb.h"
 #include "subiediag/Obd2PidTable.h"
 
+#include "PendingExchange.h"
+
 #include <string.h>
 
 namespace subiediag::obd2
@@ -134,32 +136,17 @@ namespace subiediag::obd2
                                                  size_t        *respLen,
                                                  uint32_t       timeoutMs)
     {
-        isotp::IsoTpTransport *t = m_cfg.transport;
-
-        eStatus s                = t->SendRequest(req, reqLen, timeoutMs);
-        if (!IsOk(s))
-        {
-            return s;
-        }
-
-        // Loop receives until we get a non-pending response. The ECU may
-        // send 0x7F <SID> 0x78 one or more times while it works on the
-        // request; each one re-arms our wait to P2*CAN_max.
-        uint32_t waitMs = timeoutMs;
-        while (true)
-        {
-            s = t->ReceiveResponse(resp, respCap, respLen, waitMs);
-            if (!IsOk(s))
-            {
-                return s;
-            }
-            if (*respLen >= 3 && resp[0] == c_negRespSid && resp[2] == c_nrcRcrRp)
-            {
-                waitMs = c_rcrRpTimeoutMs;
-                continue;
-            }
-            return eStatus::Ok;
-        }
+        // Shared with UdsClient (both protocols use the ISO 14229-2
+        // negative-response format); OBD-II always waits the fixed
+        // ISO 15765-4 P2*CAN_max after a 0x78.
+        return detail::ExchangeWithPendingRetry(*m_cfg.transport,
+                                                req,
+                                                reqLen,
+                                                resp,
+                                                respCap,
+                                                respLen,
+                                                timeoutMs,
+                                                c_rcrRpTimeoutMs);
     }
 
     // -------- Connect ----------------------------------------------------------

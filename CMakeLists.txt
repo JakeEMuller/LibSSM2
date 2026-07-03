@@ -44,6 +44,7 @@ add_library(subiediag_core STATIC
     src/IsoTp.cpp
     src/Ssm2Client.cpp
     src/Obd2Client.cpp
+    src/UdsClient.cpp
 )
 add_library(subiediag::core ALIAS subiediag_core)
 
@@ -181,4 +182,9 @@ if (SUBIEDIAG_BUILD_TESTS)
     target_link_libraries(subiediag_test_obd2 PRIVATE subiediag::core)
     target_include_directories(subiediag_test_obd2 PRIVATE tests)
     add_test(NAME obd2 COMMAND subiediag_test_obd2)
+
+    add_executable(subiediag_test_uds tests/test_uds.cpp)
+    target_link_libraries(subiediag_test_uds PRIVATE subiediag::core)
+    target_include_directories(subiediag_test_uds PRIVATE tests)
+    add_test(NAME uds COMMAND subiediag_test_uds)
 endif()
