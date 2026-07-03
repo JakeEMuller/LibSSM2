@@ -97,6 +97,9 @@ namespace subiediag::obd2
         EngineFuelRate       = 0x5E,
     };
 
+    // SAE J1979 allows at most 6 PIDs in a single Mode 01 request.
+    constexpr size_t c_maxMode01PidsPerRequest = 6;
+
     // Mode 09 InfoType bytes.
     constexpr uint8_t c_infoVin = 0x02;
 
@@ -189,6 +192,25 @@ namespace subiediag::obd2
         // the [0x41 PID] response header); *outLen is set to the byte count.
         [[nodiscard]] eStatus ReadPid(ePid pid, uint8_t *out, size_t outCapacity, size_t *outLen, uint32_t timeoutMs = 0);
         [[nodiscard]] eStatus ReadPid(uint8_t pid, uint8_t *out, size_t outCapacity, size_t *outLen, uint32_t timeoutMs = 0);
+
+        // Mode 01 - read up to 6 PIDs in ONE request. SAE J1979 allows several
+        // PIDs per Mode 01 message, so this collapses N single reads into one
+        // bus round trip -- the standard way to sample many live PIDs quickly.
+        //
+        // outValues[i] / outPresent[i] correspond to pids[i]: outValues[i] is
+        // the DECODED value (via c_pidTable's linear formula) and outPresent[i]
+        // is true iff the ECU returned and we decoded that PID. Every requested
+        // PID MUST be in c_pidTable (its byte count is needed to length-walk
+        // the variable-length response); returns InvalidFrame otherwise, or if
+        // count is 0 or > 6.
+        //
+        // Not all ECUs accept multi-PID requests: one that rejects it answers a
+        // negative response (this returns ProtocolError) or echoes only the
+        // first PID (that PID's outPresent is true, the rest false). Callers
+        // should fall back to single ReadPid() for any PID left not-present.
+        [[nodiscard]] eStatus ReadPids(const uint8_t *pids, size_t count,
+                                       double *outValues, bool *outPresent,
+                                       uint32_t timeoutMs = 0);
 
         // Mode 03 - read stored DTCs. Writes up to `outCapacity` decoded DTCs
         // into `out` and sets *outCount. Returns Overrun if the ECU reports

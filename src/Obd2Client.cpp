@@ -251,6 +251,86 @@ namespace subiediag::obd2
         return eStatus::Ok;
     }
 
+    // -------- ReadPids (multi-PID Mode 01) -------------------------------------
+
+    eStatus Obd2Client::ReadPids(const uint8_t *pids, size_t count,
+                                 double *outValues, bool *outPresent, uint32_t timeoutMs)
+    {
+        if (!HasTransport())
+        {
+            return eStatus::BackendUnavailable;
+        }
+        if (pids == nullptr || outValues == nullptr || outPresent == nullptr)
+        {
+            return eStatus::InvalidFrame;
+        }
+        if (count == 0 || count > c_maxMode01PidsPerRequest)
+        {
+            return eStatus::InvalidFrame;
+        }
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            outValues[i]  = 0.0;
+            outPresent[i] = false;
+            // Every requested PID must be table-known: the response segments are
+            // variable-length and unlabelled, so we need each PID's byte count
+            // to walk past it to the next.
+            if (FindPid(pids[i]) == nullptr)
+            {
+                return eStatus::InvalidFrame;
+            }
+        }
+
+        // Request: [01] [PID1..PIDK]
+        uint8_t req[1 + c_maxMode01PidsPerRequest];
+        req[0] = static_cast<uint8_t>(eObd2Mode::CurrentData);
+        memcpy(&req[1], pids, count);
+
+        // Response: [0x41] [(PID data)...]. Worst case 6 * (1 + up-to-4) + 1.
+        uint8_t       resp[48];
+        size_t        respLen = 0;
+        const eStatus s = ExchangeWithPendingRetry(req, 1 + count, resp, sizeof(resp), &respLen,
+                                                   EffectiveTimeoutMs(timeoutMs));
+        if (!IsOk(s))
+        {
+            return s;
+        }
+        if (respLen < 2 || static_cast<eObd2Rsp>(resp[0]) != eObd2Rsp::CurrentData)
+        {
+            return eStatus::ProtocolError;  // negative response / not Mode 01 data
+        }
+
+        // Walk the concatenated [PID data] segments. Each PID's data length
+        // comes from the table; match each returned PID back to its request
+        // slot (ECUs echo in request order, but match by value to be safe).
+        size_t cur = 1;
+        while (cur < respLen)
+        {
+            const uint8_t   pid  = resp[cur++];
+            const tPidInfo *info = FindPid(pid);
+            if (info == nullptr || cur + info->bytes > respLen)
+            {
+                break;  // unknown PID or truncated segment -- can't walk further
+            }
+            double value = 0.0;
+            if (DecodePid(pid, &resp[cur], info->bytes, &value))
+            {
+                for (size_t i = 0; i < count; ++i)
+                {
+                    if (pids[i] == pid && !outPresent[i])
+                    {
+                        outValues[i]  = value;
+                        outPresent[i] = true;
+                        break;
+                    }
+                }
+            }
+            cur += info->bytes;
+        }
+        return eStatus::Ok;
+    }
+
     // -------- ReadDtcs ---------------------------------------------------------
 
     namespace
