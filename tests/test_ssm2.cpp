@@ -690,6 +690,47 @@ namespace
         CHECK(values[0] == -2.0);
     }
 
+    // Switch/bool parameters (dataBit != 0): the read byte packs 8 signals,
+    // one per bit. ReadParameters must mask down to the parameter's own bit
+    // instead of returning the whole byte. Two switches share address 0x0063:
+    // Knock Signal #1 on bit 3, Knock Signal #2 on bit 2. A byte of 0x04
+    // (0b0000'0100) means #1 on (bit 3 set), #2 off (bit 2 clear).
+    void test_read_parameters_bool_bitmask()
+    {
+        MockCanBus          bus;
+        IsoTpTransport      transport(&bus, c_engineReqId, c_engineRespId);
+        Ssm2Client::tConfig cfg;
+        cfg.transport = &transport;
+        Ssm2Client client(cfg);
+
+        // trailing field is dataBit; bool convert is the identity {1, 0, true}.
+        const subiediag::ssm2::tParameter knock1 = {
+            "Knock Signal #1", 0x000063, {14, 3},
+            subiediag::ssm2::eStorageType::Uint8,
+            0, "On/Off", "[value]", "bool", "",
+            {1.0, 0.0, true}, 3
+        };
+        const subiediag::ssm2::tParameter knock2 = {
+            "Knock Signal #2", 0x000063, {14, 2},
+            subiediag::ssm2::eStorageType::Uint8,
+            0, "On/Off", "[value]", "bool", "",
+            {1.0, 0.0, true}, 2
+        };
+        const subiediag::ssm2::tParameter *picks[] = {&knock1, &knock2};
+
+        // Request gathers two addresses (2 + 3*2 = 8 bytes) -> multi-frame.
+        // Response carries the same byte 0x04 for each gathered address.
+        QueueIsoTpFlowControl(bus, c_engineRespId);
+        QueueIsoTpSingleFrame(bus, c_engineRespId, {
+            static_cast<uint8_t>(eSsm2Rsp::ReadAddresses), 0x04, 0x04
+        });
+
+        double values[2] = {};
+        CHECK_OK(client.ReadParameters(picks, 2, values));
+        CHECK(values[0] == 1.0);  // bit 3 set  -> on
+        CHECK(values[1] == 0.0);  // bit 2 clear -> off
+    }
+
     // Two parameters batched into a single A8: a Uint8 and a Uint16. Verifies
     // the gather order is preserved and each value lands in the right slot.
     void test_read_parameters_two_params_batched()
@@ -816,6 +857,7 @@ int main()
     RUN(test_find_parameter_by_address_miss);
     RUN(test_read_parameters_uint16_linear);
     RUN(test_read_parameters_int8_signed_raw);
+    RUN(test_read_parameters_bool_bitmask);
     RUN(test_read_parameters_two_params_batched);
     RUN(test_read_parameters_invalid_args);
 

@@ -155,7 +155,9 @@ namespace subiediag::ssm2
         //
         // `raw` is the parameter's bytes reassembled big-endian, with sign
         // extension for signed storage and IEEE-754 reinterpretation for
-        // Float storage.
+        // Float storage. For switch/bool parameters (param->dataBit != 0),
+        // `raw` is first masked down to that single bit's 0/1 value, since a
+        // read byte packs up to 8 independent switch signals.
         //
         // Returns Overrun if the total byte count across all parameters
         // exceeds c_maxAddrsPerRead (84) -- split into multiple calls in

@@ -534,8 +534,18 @@ namespace subiediag::ssm2
         {
             const tParameter    *p    = params[i];
             const tParameterType info = GetParameterType(p->storage);
-            const double         raw  = ReassembleRaw(&bytes[paramOffset[i]], info);
-            outValues[i]              = p->convert.linear ? (raw * p->convert.scale + p->convert.offset) : raw;
+            double               raw  = ReassembleRaw(&bytes[paramOffset[i]], info);
+
+            // Switch/bool parameter: the read byte packs up to 8 independent
+            // signals, one per bit. Mask down to just this parameter's bit
+            // (1-based) so the value is a clean 0/1 instead of the whole byte.
+            if (p->dataBit != 0)
+            {
+                const uint32_t whole = static_cast<uint32_t>(raw);
+                raw = (whole & (1U << (p->dataBit - 1))) ? 1.0 : 0.0;
+            }
+
+            outValues[i] = p->convert.linear ? (raw * p->convert.scale + p->convert.offset) : raw;
         }
 
         return eStatus::Ok;

@@ -394,6 +394,9 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
     w("    std::string_view factor;     // optional ecu_tools convert_factor key")
     w("    std::string_view desc;       // long description ('|' converted to newlines)")
     w("    tConvert         convert;    // pre-parsed `expr`; see tConvert")
+    w("    uint8_t          dataBit;    // 1-based bit position within the read byte")
+    w("                                 // for switch/bool params (type=\"bool\"); the")
+    w("                                 // byte packs up to 8 signals. 0 == whole value.")
     w("};")
     w("")
     w(f"inline constexpr std::array<tParameter, {len(params)}> c_baseTable {{{{")
@@ -415,12 +418,19 @@ def _emit_cpp(defs: LogDefs, base_type: str, out_path: Path) -> int:
             non_linear.append(p.name)
         convert = f"{{ {sc!r}, {ofs!r}, {'true' if lin else 'false'} }}"
 
+        # Switch/bool parameters pack up to 8 independent signals into one
+        # byte, one per bit. The capability-flag bit (`bit`) doubles as the
+        # data-bit position within the read byte for these, so carry it as
+        # dataBit and let ReadParameters mask the byte down to 0/1. Non-bool
+        # params get 0, meaning "use the whole reassembled value".
+        data_bit = (p.bit or 0) if p.factor_type == "bool" else 0
+
         # Compact short fields on one line; description and the pre-parsed
         # conversion each on their own continuation line so the diff is
         # readable when expressions change.
         w(f"    {{ {name}, {offset}, {cap}, {storage}, {decim}, {metric}, {expr}, {factor},")
         w(f"      {desc},")
-        w(f"      {convert} }},")
+        w(f"      {convert}, {data_bit} }},")
 
     w("}};")
     w("")
